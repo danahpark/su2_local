@@ -3083,6 +3083,16 @@ class CAvgGrad_Base : public CNumerics {
   void AddQCR(const su2double* const *val_gradprimvar);
 
   /*!
+   * \brief Add a correction inspired by Macroscopic Forcing Method 
+   *
+   * This function requires that the stress tensor already be
+   * computed using \ref GetStressTensor
+   *
+   * \param[in] val_gradprimvar
+   */
+  void AddMFM(const su2double* const *val_gradprimvar);
+
+  /*!
    * \brief Scale the stress tensor using a predefined wall stress.
    *
    * This function requires that the stress tensor already be

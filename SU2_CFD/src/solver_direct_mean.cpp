@@ -16152,6 +16152,7 @@ void CNSSolver::Friction_Forces(CGeometry *geometry, CConfig *config) {
   bool grid_movement        = config->GetGrid_Movement();
   su2double Prandtl_Lam     = config->GetPrandtl_Lam();
   bool QCR                  = config->GetQCR();
+  bool MFM                  = config->GetMFM();
   bool axisymmetric         = config->GetAxisymmetric();
 
   /*--- Evaluate reference values for non-dimensionalization.
@@ -16265,8 +16266,10 @@ void CNSSolver::Friction_Forces(CGeometry *geometry, CConfig *config) {
           }
         }
         
+	/* Uncommented by Danah on July 19 */
         /*--- If necessary evaluate the QCR contribution to Tau ---*/
-        
+        if (1) {}
+	else { 
         if (QCR){
             su2double den_aux, c_cr1=0.3, O_ik, O_jk;
             unsigned short kDim;
@@ -16292,7 +16295,7 @@ void CNSSolver::Friction_Forces(CGeometry *geometry, CConfig *config) {
             }
         
         }
-        
+       } 
         /*--- Project Tau in each surface element ---*/
         
         for (iDim = 0; iDim < nDim; iDim++) {

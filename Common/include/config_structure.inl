@@ -2008,6 +2008,8 @@ inline su2double CConfig::GetConst_DES(void) {return Const_DES; }
 
 inline bool CConfig::GetQCR(void) {return QCR;}
 
+inline bool CConfig::GetMFM(void) {return MFM;}
+
 inline bool CConfig::GetCompute_Average(void) {return Compute_Average;}
 
 inline ofstream* CConfig::GetHistFile(void) { return ConvHistFile; }

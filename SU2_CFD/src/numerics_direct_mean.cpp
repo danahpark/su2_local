@@ -4904,6 +4904,10 @@ void CAvgGrad_Base::AddQCR(const su2double* const *val_gradprimvar) {
   }
 }
 
+void CAvgGrad_Base::AddMFM(const su2double* const *val_gradprimvar) {
+
+}
+
 void CAvgGrad_Base::AddTauWall(const su2double *val_normal,
                                const su2double val_tau_wall) {
 
@@ -5117,6 +5121,7 @@ void CAvgGrad_Base::SetTauJacobian(const su2double *val_Mean_PrimVar,
                                    const su2double *val_normal) {
 
   /*--- QCR and wall functions are **not** accounted for here ---*/
+  /*--- MFM and wall functions are **not** accounted for here ---*/
 
   const su2double Density = val_Mean_PrimVar[nDim+2];
   const su2double total_viscosity = val_laminar_viscosity + val_eddy_viscosity;
@@ -5388,6 +5393,7 @@ void CAvgGrad_Flow::ComputeResidual(su2double *val_residual, su2double **val_Jac
   SetStressTensor(Mean_PrimVar, Mean_GradPrimVar, Mean_turb_ke,
          Mean_Laminar_Viscosity, Mean_Eddy_Viscosity);
   if (config->GetQCR()) AddQCR(Mean_GradPrimVar);
+  if (config->GetMFM()) AddMFM(Mean_GradPrimVar);
   if (Mean_TauWall > 0) AddTauWall(Normal, Mean_TauWall);
 
   SetHeatFluxVector(Mean_GradPrimVar, Mean_Laminar_Viscosity,

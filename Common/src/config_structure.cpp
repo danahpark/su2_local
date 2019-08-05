@@ -2331,6 +2331,9 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   /* DESCRIPTION: Activate SA Quadratic Constitutive Relation, 2000 version */
   addBoolOption("SA_QCR", QCR, false);
   
+  /* DESCRIPTION: Activate SA Macroscopic Forcing Method*/
+  addBoolOption("SA_MFM", MFM, false);
+  
   /* DESCRIPTION: Compute Average for unsteady simulations */
   addBoolOption("COMPUTE_AVERAGE", Compute_Average, false);
   
@@ -5015,6 +5018,7 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
           case SA_E_COMP:   cout << "Compressibility Correction Edwards Spalart Allmaras" << endl; break;
         }
         if (QCR) cout << "Using Quadratic Constitutive Relation, 2000 version (QCR2000)" << endl;
+        if (MFM) cout << "Using Macroscopic Forcing Method" << endl;
         cout << "Hybrid RANS/LES: ";
         switch (Kind_HybridRANSLES){
           case NO_HYBRIDRANSLES: cout <<  "No Hybrid RANS/LES" << endl; break;
