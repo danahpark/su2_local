@@ -1354,7 +1354,7 @@ CTurbSASolver::CTurbSASolver(CGeometry *geometry, CConfig *config, unsigned shor
         for (iDim = 0; iDim < nDim; iDim++) Point_Max_Coord_BGS[iVar][iDim] = 0.0;
       }
     }
-
+   
   }
   
   /*--- Initialize lower and upper limits---*/
@@ -1573,7 +1573,7 @@ void CTurbSASolver::Source_Residual(CGeometry *geometry, CSolver **solver_contai
   bool harmonic_balance = (config->GetUnsteady_Simulation() == HARMONIC_BALANCE);
   bool transition    = (config->GetKind_Trans_Model() == LM);
   bool transition_BC = (config->GetKind_Trans_Model() == BC);
-  
+
   for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
     
     /*--- Conservative variables w/o reconstruction ---*/
@@ -1621,6 +1621,15 @@ void CTurbSASolver::Source_Residual(CGeometry *geometry, CSolver **solver_contai
       
     }
 
+    /*--- Compute the gradient of the wall distance ---*/
+    //if (config->GetMFM()) {
+          
+      /*--- Set gradient of the distance to the surface ---*/
+          
+      //numerics->SetDistanceGradient(geometry->node[iPoint]->GetWall_Distance_Gradient(), NULL);
+    
+    //}
+   
     /*--- Compute the source term ---*/
     
     numerics->ComputeResidual(Residual, Jacobian_i, NULL, config);

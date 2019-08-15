@@ -1396,8 +1396,10 @@ void CGeometry::UpdateGeometry(CGeometry **geometry_container, CConfig *config) 
     
   }
   
-  if (config->GetKind_Solver() == DISC_ADJ_RANS)
-  geometry_container[MESH_0]->ComputeWall_Distance(config);
+  if (config->GetKind_Solver() == DISC_ADJ_RANS) {
+      geometry_container[MESH_0]->ComputeWall_Distance(config);
+      geometry_container[MESH_0]->ComputeWall_Distance_Gradient(config);
+  }
   
 }
 
@@ -13050,6 +13052,165 @@ void CPhysicalGeometry::ComputeWall_Distance(CConfig *config) {
     }
   }
   
+}
+
+void CPhysicalGeometry::ComputeWall_Distance_Gradient(CConfig *config) {
+  
+  unsigned short iVar, iDim, jDim, iNeigh;
+  unsigned long iPoint, jPoint;
+  su2double PrimVar_i, PrimVar_j, *Coord_i, *Coord_j, r11, r12, r13, r22, r23, r23_a,
+  r23_b, r33, weight, product, z11, z12, z13, z22, z23, z33, detR2;
+  bool singular;
+  
+  /*--- Computes the gradient of the wall distance using the least squares ---*/
+  su2double *Cvector;
+  su2double **Smatrix;
+  
+  Cvector = new su2double [nDim];
+      
+  Smatrix = new su2double* [nDim];
+  for (iDim = 0; iDim < nDim; iDim++)
+      Smatrix[iDim] = new su2double [nDim];
+
+
+  /*--- Loop over points of the grid ---*/
+  
+  for (iPoint=0; iPoint<GetnPoint(); ++iPoint) {
+    
+    /*--- Set the value of the singular ---*/
+    singular = false;
+    
+    /*--- Get coordinates ---*/
+    
+    Coord_i = node[iPoint]->GetCoord();//2d or 3d array
+    
+    /*--- Get primitives from CVariable ---*/
+    
+    PrimVar_i = node[iPoint]->GetWall_Distance();
+    
+    /*--- Inizialization of variables ---*/
+    
+    for (iDim = 0; iDim < nDim; iDim++)
+      Cvector[iDim] = 0.0;
+    
+    r11 = 0.0; r12 = 0.0;   r13 = 0.0;    r22 = 0.0;
+    r23 = 0.0; r23_a = 0.0; r23_b = 0.0;  r33 = 0.0;
+    
+    //AD::StartPreacc();
+    //AD::SetPreaccIn(PrimVar_i, nPrimVarGrad);
+    //AD::SetPreaccIn(PrimVar_i, 1);
+    //AD::SetPreaccIn(&PrimVar_i, 1);
+    //AD::SetPreaccIn(Coord_i, nDim);
+    
+    for (iNeigh = 0; iNeigh < node[iPoint]->GetnPoint(); iNeigh++) {
+      jPoint = node[iPoint]->GetPoint(iNeigh);
+      Coord_j = node[jPoint]->GetCoord();
+      
+      PrimVar_j = node[jPoint]->GetWall_Distance();
+      
+      //AD::SetPreaccIn(Coord_j, nDim);
+      //AD::SetPreaccIn(&PrimVar_j, 1);
+      //AD::SetPreaccIn(PrimVar_j, nPrimVarGrad);
+
+      weight = 0.0;
+      for (iDim = 0; iDim < nDim; iDim++)
+        weight += (Coord_j[iDim]-Coord_i[iDim])*(Coord_j[iDim]-Coord_i[iDim]);
+      
+      /*--- Sumations for entries of upper triangular matrix R ---*/
+      
+      if (weight != 0.0) {
+        
+        r11 += (Coord_j[0]-Coord_i[0])*(Coord_j[0]-Coord_i[0])/weight;
+        r12 += (Coord_j[0]-Coord_i[0])*(Coord_j[1]-Coord_i[1])/weight;
+        r22 += (Coord_j[1]-Coord_i[1])*(Coord_j[1]-Coord_i[1])/weight;
+        
+        if (nDim == 3) {
+          r13 += (Coord_j[0]-Coord_i[0])*(Coord_j[2]-Coord_i[2])/weight;
+          r23_a += (Coord_j[1]-Coord_i[1])*(Coord_j[2]-Coord_i[2])/weight;
+          r23_b += (Coord_j[0]-Coord_i[0])*(Coord_j[2]-Coord_i[2])/weight;
+          r33 += (Coord_j[2]-Coord_i[2])*(Coord_j[2]-Coord_i[2])/weight;
+        }
+        
+        /*--- Entries of c:= transpose(A)*b ---*/
+        
+        for (iDim = 0; iDim < nDim; iDim++)
+          Cvector[iDim] += (Coord_j[iDim]-Coord_i[iDim])*(PrimVar_j-PrimVar_i)/weight;
+        
+      }
+      
+    }
+    
+    /*--- Entries of upper triangular matrix R ---*/
+    
+    if (r11 >= 0.0) r11 = sqrt(r11); else r11 = 0.0;
+    if (r11 != 0.0) r12 = r12/r11; else r12 = 0.0;
+    if (r22-r12*r12 >= 0.0) r22 = sqrt(r22-r12*r12); else r22 = 0.0;
+    
+    if (nDim == 3) {
+      if (r11 != 0.0) r13 = r13/r11; else r13 = 0.0;
+      if ((r22 != 0.0) && (r11*r22 != 0.0)) r23 = r23_a/r22 - r23_b*r12/(r11*r22); else r23 = 0.0;
+      if (r33-r23*r23-r13*r13 >= 0.0) r33 = sqrt(r33-r23*r23-r13*r13); else r33 = 0.0;
+    }
+    
+    /*--- Compute determinant ---*/
+    
+    if (nDim == 2) detR2 = (r11*r22)*(r11*r22);
+    else detR2 = (r11*r22*r33)*(r11*r22*r33);
+    
+    /*--- Detect singular matrices ---*/
+    
+    if (abs(detR2) <= EPS) { detR2 = 1.0; singular = true; }
+    
+    /*--- S matrix := inv(R)*traspose(inv(R)) ---*/
+    
+    if (singular) {
+      for (iDim = 0; iDim < nDim; iDim++)
+        for (jDim = 0; jDim < nDim; jDim++)
+          Smatrix[iDim][jDim] = 0.0;
+    }
+    else {
+      if (nDim == 2) {
+        Smatrix[0][0] = (r12*r12+r22*r22)/detR2;
+        Smatrix[0][1] = -r11*r12/detR2;
+        Smatrix[1][0] = Smatrix[0][1];
+        Smatrix[1][1] = r11*r11/detR2;
+      }
+      else {
+        z11 = r22*r33; z12 = -r12*r33; z13 = r12*r23-r13*r22;
+        z22 = r11*r33; z23 = -r11*r23; z33 = r11*r22;
+        Smatrix[0][0] = (z11*z11+z12*z12+z13*z13)/detR2;
+        Smatrix[0][1] = (z12*z22+z13*z23)/detR2;
+        Smatrix[0][2] = (z13*z33)/detR2;
+        Smatrix[1][0] = Smatrix[0][1];
+        Smatrix[1][1] = (z22*z22+z23*z23)/detR2;
+        Smatrix[1][2] = (z23*z33)/detR2;
+        Smatrix[2][0] = Smatrix[0][2];
+        Smatrix[2][1] = Smatrix[1][2];
+        Smatrix[2][2] = (z33*z33)/detR2;
+      }
+    }
+    
+    /*--- Computation of the gradient: S*c ---*/
+
+    for (iDim = 0; iDim < nDim; iDim++) {
+      product = 0.0;
+      for (jDim = 0; jDim < nDim; jDim++) {
+        product += Smatrix[iDim][jDim]*Cvector[jDim];
+      }
+        
+      node[iPoint]->SetWall_Distance_Gradient(iDim, product);
+    }
+    
+    //AD::SetPreaccOut(node[iPoint]->GetWall_Distance_Gradient(), nPrimVarGrad, nDim);
+    //AD::EndPreacc();
+    
+  }
+  
+  delete [] Cvector;
+  
+  for (iDim = 0; iDim < nDim; iDim++)
+      delete [] Smatrix[iDim];
+  delete [] Smatrix;
 }
 
 void CPhysicalGeometry::SetPositive_ZArea(CConfig *config) {

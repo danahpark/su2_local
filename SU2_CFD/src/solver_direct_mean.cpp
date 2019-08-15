@@ -4564,6 +4564,7 @@ void CEulerSolver::Centered_Residual(CGeometry *geometry, CSolver **solver_conta
     
     iPoint = geometry->edge[iEdge]->GetNode(0); jPoint = geometry->edge[iEdge]->GetNode(1);
     numerics->SetNormal(geometry->edge[iEdge]->GetNormal());
+    numerics->SetDistanceGradient(geometry->node[iPoint]->GetWall_Distance_Gradient(),geometry->node[jPoint]->GetWall_Distance_Gradient());
     numerics->SetNeighbor(geometry->node[iPoint]->GetnNeighbor(), geometry->node[jPoint]->GetnNeighbor());
     
     /*--- Set primitive variables w/o reconstruction ---*/
@@ -4640,6 +4641,7 @@ void CEulerSolver::Upwind_Residual(CGeometry *geometry, CSolver **solver_contain
     
     iPoint = geometry->edge[iEdge]->GetNode(0); jPoint = geometry->edge[iEdge]->GetNode(1);
     numerics->SetNormal(geometry->edge[iEdge]->GetNormal());
+    numerics->SetDistanceGradient(geometry->node[iPoint]->GetWall_Distance_Gradient(),geometry->node[jPoint]->GetWall_Distance_Gradient());
     
     /*--- Roe Turkel preconditioning ---*/
     
@@ -16079,6 +16081,7 @@ void CNSSolver::Viscous_Residual(CGeometry *geometry, CSolver **solver_container
     jPoint = geometry->edge[iEdge]->GetNode(1);
     numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[jPoint]->GetCoord());
     numerics->SetNormal(geometry->edge[iEdge]->GetNormal());
+    numerics->SetDistanceGradient(geometry->node[iPoint]->GetWall_Distance_Gradient(),geometry->node[jPoint]->GetWall_Distance_Gradient());
     
     /*--- Primitive and secondary variables ---*/
     

@@ -56,6 +56,7 @@ CPoint::CPoint(unsigned short val_nDim, unsigned long val_globalindex, CConfig *
   Coord   = NULL;  Coord_Old    = NULL;  Coord_Sum = NULL;
   Coord_n = NULL;  Coord_n1     = NULL;  Coord_p1 = NULL;
   GridVel = NULL;  GridVel_Grad = NULL;
+  Wall_Distance_Gradient = NULL;
 
   /*--- Volume (0 -> Vol_nP1, 1-> Vol_n, 2 -> Vol_nM1 ) and coordinates of the control volume ---*/
 
@@ -132,6 +133,7 @@ CPoint::CPoint(unsigned short val_nDim, unsigned long val_globalindex, CConfig *
   /*--- Intialize the value of the curvature ---*/
   Curvature = 0.0;
 
+  Wall_Distance_Gradient = new su2double[nDim];
 }
 
 CPoint::CPoint(su2double val_coord_0, su2double val_coord_1, unsigned long val_globalindex, CConfig *config) : CDualGrid(2) {
@@ -147,6 +149,7 @@ CPoint::CPoint(su2double val_coord_0, su2double val_coord_1, unsigned long val_g
   Coord   = NULL;  Coord_Old    = NULL;  Coord_Sum = NULL;
   Coord_n = NULL;  Coord_n1     = NULL;  Coord_p1  = NULL;
   GridVel = NULL;  GridVel_Grad = NULL;
+  Wall_Distance_Gradient = NULL;
 
   /*--- Volume (0 -> Vol_nP1, 1-> Vol_n, 2 -> Vol_nM1 ) and coordinates of the control volume ---*/
 
@@ -226,6 +229,8 @@ CPoint::CPoint(su2double val_coord_0, su2double val_coord_1, unsigned long val_g
   /*--- Intialize the value of the curvature ---*/
   Curvature = 0.0;
 
+  Wall_Distance_Gradient = new su2double[nDim];
+
 }
 
 CPoint::CPoint(su2double val_coord_0, su2double val_coord_1, su2double val_coord_2, unsigned long val_globalindex, CConfig *config) : CDualGrid(3) {
@@ -241,6 +246,7 @@ CPoint::CPoint(su2double val_coord_0, su2double val_coord_1, su2double val_coord
   Coord   = NULL;  Coord_Old    = NULL;  Coord_Sum = NULL;
   Coord_n = NULL;  Coord_n1     = NULL;  Coord_p1 = NULL;
   GridVel = NULL;  GridVel_Grad = NULL;
+  Wall_Distance_Gradient = NULL;
 
   /*--- Volume (0 -> Vol_nP1, 1-> Vol_n, 2 -> Vol_nM1 ) and coordinates of the control volume ---*/
   if ( config->GetUnsteady_Simulation() == NO ) { 
@@ -322,6 +328,7 @@ CPoint::CPoint(su2double val_coord_0, su2double val_coord_1, su2double val_coord
   /*--- Intialize the value of the curvature ---*/
   Curvature = 0.0;
 
+  Wall_Distance_Gradient = new su2double[nDim];
 }
 
 CPoint::~CPoint() {
@@ -340,6 +347,7 @@ CPoint::~CPoint() {
       delete [] GridVel_Grad[iDim];
     delete [] GridVel_Grad;
   }
+  if (Wall_Distance_Gradient != NULL) delete[] Wall_Distance_Gradient;
   
 }
 

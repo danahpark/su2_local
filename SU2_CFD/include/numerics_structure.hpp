@@ -121,6 +121,8 @@ public:
   Enthalpy_j;      /*!< \brief Enthalpy at point j. */
   su2double dist_i,  /*!< \brief Distance of point i to the nearest wall. */
   dist_j;      /*!< \brief Distance of point j to the nearest wall. */
+  su2double *dist_grad_i,  /*!< \brief Gradient of distance of point i to the nearest wall. */
+  *dist_grad_j;      /*!< \brief Gradient of distance of point j to the nearest wall. */
   su2double Temp_i,  /*!< \brief Temperature at point i. */
   Temp_j;      /*!< \brief Temperature at point j. */
   su2double *Temp_tr_i, /*!< \brief Temperature transl-rot at point i. */
@@ -532,6 +534,13 @@ public:
    * \param[in] val_dist_j - Value of of the distance from point j to the nearest wall.
    */
   void SetDistance(su2double val_dist_i, su2double val_dist_j);
+  
+  /*!
+   * \brief Set the value of the gradient of the distance from the nearest wall.
+   * \param[in] val_dist_grad_i - Value of of the gradient of the distance from point i to the nearest wall.
+   * \param[in] val_dist_grad_j - Value of of the gradient of the distance from point j to the nearest wall.
+   */
+  void SetDistanceGradient(su2double *val_dist_grad_i, su2double *val_dist_grad_j);
   
   /*!
    * \brief Set coordinates of the points.
@@ -3064,7 +3073,8 @@ class CAvgGrad_Base : public CNumerics {
   TauWall_i, TauWall_j,        /*!< \brief Wall shear stress at point i and j (wall functions). */
   dist_ij_2,                   /*!< \brief Length of the edge and face, squared */
   *Proj_Mean_GradPrimVar_Edge, /*!< \brief Inner product of the Mean gradient and the edge vector. */
-  *Edge_Vector;                /*!< \brief Vector from point i to point j. */
+  *Edge_Vector,                /*!< \brief Vector from point i to point j. */
+  *Mean_GradWallDist;                /*!< \brief Mean value of the gradient of the wall distance. */
 
 
 
@@ -3083,14 +3093,19 @@ class CAvgGrad_Base : public CNumerics {
   void AddQCR(const su2double* const *val_gradprimvar);
 
   /*!
-   * \brief Add a correction inspired by Macroscopic Forcing Method 
+   * \brief Set stress tensor using a correction inspired by Macroscopic Forcing Method 
    *
    * This function requires that the stress tensor already be
    * computed using \ref GetStressTensor
    *
-   * \param[in] val_gradprimvar
+   * \param[in] val_primvar- Mean value of the primitive variables.
+   * \param[in] val_gradprimvar - Value of the gradient of the primitive variables
+   * \param[in] val_turb_ke - Value of the turbulent kinectic energy
+   * \param[in] val_laminar_viscosity - Value of the laminar viscosity.
+   * \param[in] val_eddy_viscosity - Value of the eddy viscosity.
+   * \param[in] val_wall_dist_grad - Value of the gradient of the wall distance
    */
-  void AddMFM(const su2double* const *val_gradprimvar);
+  void SetStressTensorMFM(const su2double *val_primvar, const su2double* const *val_gradprimvar, const su2double val_turb_ke, const               su2double val_laminar_viscosity, const su2double val_eddy_viscosity, const su2double *val_wall_dist_grad);
 
   /*!
    * \brief Scale the stress tensor using a predefined wall stress.

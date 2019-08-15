@@ -172,6 +172,7 @@ CDriver::CDriver(char* confFile,
           cout << "Computing wall distances." << endl;
 
         geometry_container[iZone][iInst][MESH_0]->ComputeWall_Distance(config_container[iZone]);
+        geometry_container[iZone][iInst][MESH_0]->ComputeWall_Distance_Gradient(config_container[iZone]);
       }
 
       /*--- Computation of positive surface area in the z-plane which is used for

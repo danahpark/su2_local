@@ -168,6 +168,7 @@ private:
   bool Move;                          /*!< \brief This flag indicates if the point is going to be move in the grid deformation process. */
   unsigned short color;               /*!< \brief Color of the point in the partitioning strategy. */
   su2double Wall_Distance;            /*!< \brief Distance to the nearest wall. */
+  su2double *Wall_Distance_Gradient;  /*!< \brief Gradient of distance to the nearest wall. */
   su2double SharpEdge_Distance;       /*!< \brief Distance to a sharp edge. */
   su2double Curvature;                /*!< \brief Value of the surface curvature (SU2_GEO). */
   unsigned long GlobalIndex;          /*!< \brief Global index in the parallel simulation. */
@@ -227,6 +228,13 @@ public:
 	 */
 	void SetWall_Distance(su2double val_distance);
   
+	/*! 
+	 * \brief Set the value of the gradient of a distance to the nearest wall.
+	 * \param[in] val_dim- Value of the dimension.
+	 * \param[in] val_gradient- Value of the gradient.
+	 */
+	void SetWall_Distance_Gradient(unsigned short val_dim, su2double val_gradient);
+  
   /*!
 	 * \brief Set the value of the distance to a sharp edge.
 	 * \param[in] val_distance - Value of the distance.
@@ -238,6 +246,19 @@ public:
 	 * \return Value of the distance to the nearest wall.
 	 */
 	su2double GetWall_Distance(void);
+
+	/*! 
+	 * \brief Get the value of the gradient of the distance to the nearest wall.
+	 * \return Value of the distance to the nearest wall.
+	 */
+  su2double *GetWall_Distance_Gradient(void);
+
+	/*! 
+	 * \brief Get the value of the gradient of the distance to the nearest wall.
+	 * \param[in] val_dim- Value of the dimension.
+	 * \return Value of the distance to the nearest wall.
+	 */
+  su2double GetWall_Distance_Gradient(unsigned short val_dim);
 	
   /*!
 	 * \brief Set the value of the curvature at a surface node.
