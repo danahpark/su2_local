@@ -931,8 +931,9 @@ private:
   nPlunging_Ampl_X,           /*!< \brief Number of Plunging amplitudes in the x-direction. */
   nPlunging_Ampl_Y,           /*!< \brief Number of Plunging amplitudes in the y-direction. */
   nPlunging_Ampl_Z,           /*!< \brief Number of Plunging amplitudes in the z-direction. */
-  nOmega_HB,                /*!< \brief Number of frequencies in Harmonic Balance Operator. */
+  nOmega_HB,                  /*!< \brief Number of frequencies in Harmonic Balance Operator. */
   nMoveMotion_Origin,         /*!< \brief Number of motion origins. */
+  nEddy_Visc_MFM,             /*!< \brief Number of eddy viscosity tensorial elements inpired by MFM. */
   *MoveMotion_Origin;         /*!< \brief Keeps track if we should move moment origin. */
   vector<vector<vector<su2double> > > Aeroelastic_np1, /*!< \brief Aeroelastic solution at time level n+1. */
   Aeroelastic_n,              /*!< \brief Aeroelastic solution at time level n. */
@@ -1008,6 +1009,7 @@ private:
   unsigned short Kind_RoeLowDiss;    /*!< \brief Kind of Roe scheme with low dissipation for unsteady flows. */
   bool QCR;                   /*!< \brief Spalart-Allmaras with Quadratic Constitutive Relation, 2000 version (SA-QCR2000) . */
   bool MFM;                   /*!< \brief Spalart-Allmaras with Macroscopic Forcing Method inspired Modification. */
+  su2double *Eddy_Visc_MFM;   /*!< \brief Eddy viscosity tensorial coefficients inspired by Macroscopic Forcing Method. */
   su2double *default_vel_inf, /*!< \brief Default freestream velocity array for the COption class. */
   *default_eng_cyl,           /*!< \brief Default engine box array for the COption class. */
   *default_eng_val,           /*!< \brief Default engine box array values for the COption class. */
@@ -9016,6 +9018,11 @@ public:
    * \brief Get MFM (SA-MFM).
    */
   bool GetMFM(void);
+
+  /*!
+   * \brief Get MFM eddy viscosity element (SA-MFM).
+   */
+  su2double* GetEddy_Visc_MFM(void);
 
   /*!
    * \brief Get if AD preaccumulation should be performed.

@@ -70,6 +70,7 @@ protected:
   su2double *Enthalpy_formation;
   su2double Prandtl_Lam;        /*!< \brief Laminar Prandtl's number. */
   su2double Prandtl_Turb;    /*!< \brief Turbulent Prandtl's number. */
+  su2double *Eddy_Visc_MFM; /*!< \brief Eddy Viscosity Tensorial Component inspired by Macroscopic Forcing Method. */
   
 public:
   

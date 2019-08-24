@@ -518,6 +518,7 @@ void CConfig::SetPointersNull(void) {
   MG_PreSmooth              = NULL;
   MG_PostSmooth             = NULL;
   Int_Coeffs                = NULL;
+  Eddy_Visc_MFM             = NULL;
 
   Kind_Inc_Inlet = NULL;
   Kind_Inc_Outlet = NULL;
@@ -1239,6 +1240,8 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   // these options share nRKStep as their size, which is not a good idea in general
   /* DESCRIPTION: Runge-Kutta alpha coefficients */
   addDoubleListOption("RK_ALPHA_COEFF", nRKStep, RK_Alpha_Step);
+  /* DESCRIPTION: Eddy viscosity tensorial component inspired by Macroscopic Forcing Method */
+  addDoubleListOption("EDDY_VISC_MFM", nEddy_Visc_MFM, Eddy_Visc_MFM);
   /* DESCRIPTION: Number of time levels for time accurate local time stepping. */
   addUnsignedShortOption("LEVELS_TIME_ACCURATE_LTS", nLevels_TimeAccurateLTS, 1);
   /* DESCRIPTION: Number of time DOFs used in the predictor step of ADER-DG. */
@@ -6847,6 +6850,7 @@ CConfig::~CConfig(void) {
   if (RK_Alpha_Step             != NULL) delete [] RK_Alpha_Step;
   if (MG_PreSmooth              != NULL) delete [] MG_PreSmooth;
   if (MG_PostSmooth             != NULL) delete [] MG_PostSmooth;
+  if (Eddy_Visc_MFM             != NULL) delete [] Eddy_Visc_MFM;
 
   /*--- Free memory for Aeroelastic problems. ---*/
 

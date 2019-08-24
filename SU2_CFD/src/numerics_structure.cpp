@@ -65,6 +65,7 @@ CNumerics::CNumerics(void) {
   l = NULL;
   m = NULL;
 
+  Eddy_Visc_MFM = NULL;
 }
 
 CNumerics::CNumerics(unsigned short val_nDim, unsigned short val_nVar,
@@ -114,6 +115,7 @@ CNumerics::CNumerics(unsigned short val_nDim, unsigned short val_nVar,
   Prandtl_Lam = config->GetPrandtl_Lam();
   Prandtl_Turb = config->GetPrandtl_Turb();
   Gas_Constant = config->GetGas_ConstantND();
+  Eddy_Visc_MFM = config->GetEddy_Visc_MFM();
 
   UnitNormal = new su2double [nDim];
   UnitNormald = new su2double [nDim];
@@ -255,6 +257,8 @@ CNumerics::~CNumerics(void) {
 
   if (l != NULL) delete [] l;
   if (m != NULL) delete [] m;
+
+  if (Eddy_Visc_MFM != NULL) delete [] Eddy_Visc_MFM;
 
   if (using_uq) {
     for (unsigned short iDim = 0; iDim < 3; iDim++){

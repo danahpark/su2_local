@@ -4993,15 +4993,27 @@ void CAvgGrad_Base::SetStressTensorMFM(const su2double *val_primvar, const su2do
   
   /*--- Test 4: Further reduced SA + SA eddy diffusivity tensor---*/
   /*--- Test 5: More reduced SA + SA eddy diffusivity tensor---*/
-  /*
-  Djilk[1][0][1][0] = val_eddy_viscosity;
-  Djilk[1][0][0][1] = val_eddy_viscosity;
-  Djilk[0][1][0][1] = val_eddy_viscosity;
-  Djilk[0][1][1][0] = val_eddy_viscosity;
-  Djilk[0][0][0][0] = 2.*val_eddy_viscosity;
-  Djilk[1][1][1][1] = 2.*val_eddy_viscosity;
-  */
+  if (Eddy_Visc_MFM == NULL) {
+    Djilk[1][0][1][0] = val_eddy_viscosity;
+    Djilk[1][0][0][1] = val_eddy_viscosity;
+    Djilk[0][1][0][1] = val_eddy_viscosity;
+    Djilk[0][1][1][0] = val_eddy_viscosity;
+    Djilk[0][0][0][0] = 2.*val_eddy_viscosity;
+    Djilk[1][1][1][1] = 2.*val_eddy_viscosity;
+  }
   /*--- Test 6: Further reduced SA + MFM eddy diffusivity tensor---*/
+  else {
+    for (jDim = 0; jDim < nDim; jDim++) {
+      for (iDim = 0; iDim < nDim; iDim++) {
+        for (lDim = 0; lDim < nDim; lDim++) {
+          for (kDim = 0; kDim < nDim; kDim++) {
+            Djilk[jDim][iDim][lDim][kDim] = Eddy_Visc_MFM[jDim*nDim*nDim*nDim+iDim*nDim*nDim+lDim*nDim+kDim] * val_eddy_viscosity;
+            //cout << "D" << jDim+1 << iDim+1 << lDim+1 << kDim+1 << ": ( " << Djilk[jDim][iDim][lDim][kDim] << " )" <<  endl;
+          }
+        }
+      }
+    }
+/*
   Djilk[1][0][1][0] = val_eddy_viscosity;
   Djilk[1][0][0][1] = val_eddy_viscosity;
   Djilk[0][1][0][1] = val_eddy_viscosity;
@@ -5010,7 +5022,8 @@ void CAvgGrad_Base::SetStressTensorMFM(const su2double *val_primvar, const su2do
   Djilk[1][1][1][1] = 2.*val_eddy_viscosity;
   Djilk[0][0][1][0] = -val_eddy_viscosity;
   Djilk[1][1][1][0] = -val_eddy_viscosity;
-
+*/
+  }
 
   /*--- Multiply tensorial eddy viscosity ---*/
   for (iDim = 0; iDim < nDim; iDim++) {
@@ -5041,9 +5054,9 @@ void CAvgGrad_Base::SetStressTensorMFM(const su2double *val_primvar, const su2do
       /*--- Test 4: Further reduced SA + SA eddy diffusivity tensor---*/
       //tau[iDim][jDim] = val_laminar_viscosity*( val_gradprimvar[jDim+1][iDim] );
       /*--- Test 5: More reduced SA + SA eddy diffusivity tensor---*/
-      //tau[iDim][jDim] = val_laminar_viscosity*( val_gradprimvar[jDim+1][iDim] + val_gradprimvar[iDim+1][jDim] );
+      tau[iDim][jDim] = val_laminar_viscosity*( val_gradprimvar[jDim+1][iDim] + val_gradprimvar[iDim+1][jDim] );
       /*--- Test 6: Further reduced SA + MFM eddy diffusivity tensor---*/
-      tau[iDim][jDim] = val_laminar_viscosity*( val_gradprimvar[jDim+1][iDim] );
+      //tau[iDim][jDim] = val_laminar_viscosity*( val_gradprimvar[jDim+1][iDim] );
   
 
   /*--- Change tau back to the original coordinate and update Reynolds stress---*/
