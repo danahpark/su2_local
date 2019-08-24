@@ -258,7 +258,7 @@ CNumerics::~CNumerics(void) {
   if (l != NULL) delete [] l;
   if (m != NULL) delete [] m;
 
-  if (Eddy_Visc_MFM != NULL) delete [] Eddy_Visc_MFM;
+  //if (Eddy_Visc_MFM != NULL) delete [] Eddy_Visc_MFM;
 
   if (using_uq) {
     for (unsigned short iDim = 0; iDim < 3; iDim++){
