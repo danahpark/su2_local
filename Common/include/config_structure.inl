@@ -1197,6 +1197,8 @@ inline bool CConfig::GetInlet_Profile_From_File(void) { return Inlet_From_File; 
 
 inline string CConfig::GetInlet_FileName(void) { return Inlet_Filename; }
 
+inline string CConfig::GetD0jilk_FileName(void) { return D0jilk_Filename; }
+
 inline su2double CConfig::GetInlet_Profile_Matching_Tolerance(void) { return Inlet_Matching_Tol; }
 
 inline unsigned short CConfig::GetnInc_Inlet(void) { return nInc_Inlet;}
@@ -2011,6 +2013,8 @@ inline su2double CConfig::GetConst_DES(void) {return Const_DES; }
 inline bool CConfig::GetQCR(void) {return QCR;}
 
 inline bool CConfig::GetMFM(void) {return MFM;}
+
+inline bool CConfig::GetfRANS(void) {return fRANS;}
 
 inline bool CConfig::GetCompute_Average(void) {return Compute_Average;}
 

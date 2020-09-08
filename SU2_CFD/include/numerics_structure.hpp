@@ -124,6 +124,8 @@ public:
   dist_j;      /*!< \brief Distance of point j to the nearest wall. */
   su2double *dist_grad_i,  /*!< \brief Gradient of distance of point i to the nearest wall. */
   *dist_grad_j;      /*!< \brief Gradient of distance of point j to the nearest wall. */
+  su2double *D0jilk_i,  /*!< \brief Tensorial eddy viscosity of point i to the nearest wall. */
+  *D0jilk_j;  /*!< \brief Tensorial eddy viscosity of point i to the nearest wall. */
   su2double Temp_i,  /*!< \brief Temperature at point i. */
   Temp_j;      /*!< \brief Temperature at point j. */
   su2double *Temp_tr_i, /*!< \brief Temperature transl-rot at point i. */
@@ -222,9 +224,16 @@ public:
   su2double uq_urlx;                 /*!< \brief Under-relaxation factor for numerical stability */
   bool uq_permute;                   /*!< \brief Flag for eigenvector permutation */
 
+  bool Djilkswitch;               /*!<  \brief Switch to turn on the Djilk at the very beginning stage */
+
   /* Supporting data structures for the eigenspace perturbation for UQ methodology */
   su2double **A_ij, **newA_ij, **Eig_Vec, **New_Eig_Vec, **Corners;
   su2double *Eig_Val, *Barycentric_Coord, *New_Coord;
+
+  su2double EddyViscosity_D1111_i; /*!< \brief D_{1111} Eddy Viscosity Tensorial Component inspired by Macroscopic Forcing Method. */
+  su2double EddyViscosity_D1111_j; /*!< \brief D_{1111} Eddy Viscosity Tensorial Component inspired by Macroscopic Forcing Method. */
+  su2double EddyViscosity_D2121_i; /*!< \brief D_{2121} Eddy Viscosity Tensorial Component inspired by Macroscopic Forcing Method. */
+  su2double EddyViscosity_D2121_j; /*!< \brief D_{2121} Eddy Viscosity Tensorial Component inspired by Macroscopic Forcing Method. */
 
   /*!
    * \brief Constructor of the class.
@@ -523,6 +532,22 @@ public:
                         su2double val_eddy_viscosity_j);
   
   /*!
+   * \brief Set the eddy viscosity.
+   * \param[in] val_eddy_viscosity_i - Value of the eddy viscosity at point i.
+   * \param[in] val_eddy_viscosity_j - Value of the eddy viscosity at point j.
+   */
+  void SetEddyViscosity_D1111(su2double val_eddy_viscosity_i,
+                        su2double val_eddy_viscosity_j);
+  
+  /*!
+   * \brief Set the eddy viscosity.
+   * \param[in] val_eddy_viscosity_i - Value of the eddy viscosity at point i.
+   * \param[in] val_eddy_viscosity_j - Value of the eddy viscosity at point j.
+   */
+  void SetEddyViscosity_D2121(su2double val_eddy_viscosity_i,
+                        su2double val_eddy_viscosity_j);
+      
+  /*!
    * \brief Set the turbulent kinetic energy.
    * \param[in] val_turb_ke_i - Value of the turbulent kinetic energy at point i.
    * \param[in] val_turb_ke_j - Value of the turbulent kinetic energy at point j.
@@ -542,6 +567,13 @@ public:
    * \param[in] val_dist_grad_j - Value of of the gradient of the distance from point j to the nearest wall.
    */
   void SetDistanceGradient(su2double *val_dist_grad_i, su2double *val_dist_grad_j);
+  
+  /*!
+   * \brief Set the value of the tensorial eddy viscosity.
+   * \param[in] val_D0jilk_i- Value of eddy visocity at point i.
+   * \param[in] val_D0jilk_j- Value of eddy visocity at point i.
+   */
+  void SetD0jilk(su2double *val_D0jilk_i, su2double *val_D0jilk_j);
   
   /*!
    * \brief Set coordinates of the points.
@@ -1504,6 +1536,17 @@ public:
    */
   static void tql2(su2double **V, su2double *d, su2double *e, unsigned short n);
   
+  /*!
+   * \brief Compute Eddy Viscosity D1111
+   */
+  virtual su2double ComputeEddyViscosity_D1111_i(void);
+  virtual su2double ComputeEddyViscosity_D1111_j(void);
+
+  /*!
+   * \brief Compute Eddy Viscosity D2121
+   */
+  virtual su2double ComputeEddyViscosity_D2121_i(void);
+  virtual su2double ComputeEddyViscosity_D2121_j(void);
 };
 
 /*!
@@ -3075,7 +3118,8 @@ class CAvgGrad_Base : public CNumerics {
   dist_ij_2,                   /*!< \brief Length of the edge and face, squared */
   *Proj_Mean_GradPrimVar_Edge, /*!< \brief Inner product of the Mean gradient and the edge vector. */
   *Edge_Vector,                /*!< \brief Vector from point i to point j. */
-  *Mean_GradWallDist;                /*!< \brief Mean value of the gradient of the wall distance. */
+  *Mean_GradWallDist,                /*!< \brief Mean value of the gradient of the wall distance. */
+  *Mean_D0jilk;                /*!< \brief Mean value of the eddy viscosity valu. */
 
 
 
@@ -3106,7 +3150,23 @@ class CAvgGrad_Base : public CNumerics {
    * \param[in] val_eddy_viscosity - Value of the eddy viscosity.
    * \param[in] val_wall_dist_grad - Value of the gradient of the wall distance
    */
-  void SetStressTensorMFM(const su2double *val_primvar, const su2double* const *val_gradprimvar, const su2double val_turb_ke, const               su2double val_laminar_viscosity, const su2double val_eddy_viscosity, const su2double *val_wall_dist_grad);
+  void SetStressTensorMFM(const su2double *val_primvar, const su2double* const *val_gradprimvar, const su2double val_turb_ke, const               su2double val_laminar_viscosity, const su2double val_eddy_viscosity, const su2double val_wall_dist, const su2double *val_wall_dist_grad);
+
+  /*!
+   * \brief Set stress tensor using a correction inspired by Macroscopic Forcing Method using fixed RANS
+   *
+   * This function requires that the stress tensor already be
+   * computed using \ref GetStressTensor
+   *
+   * \param[in] val_primvar- Mean value of the primitive variables.
+   * \param[in] val_gradprimvar - Value of the gradient of the primitive variables
+   * \param[in] val_D0jilk - Value of the tensorial eddy viscosity
+   * \param[in] val_turb_ke - Value of the turbulent kinectic energy
+   * \param[in] val_laminar_viscosity - Value of the laminar viscosity.
+   * \param[in] val_eddy_viscosity - Value of the eddy viscosity.
+   * \param[in] val_wall_dist_grad - Value of the gradient of the wall distance
+   */
+  void SetStressTensorfRANS(const su2double *val_primvar, const su2double* const *val_gradprimvar, const su2double val_turb_ke, const               su2double val_laminar_viscosity, const su2double val_eddy_viscosity, const su2double val_wall_dist, const su2double *val_wall_dist_grad, const su2double * val_D0jilk);
 
   /*!
    * \brief Scale the stress tensor using a predefined wall stress.
@@ -3304,6 +3364,18 @@ public:
    * \brief Destructor of the class.
    */
   ~CAvgGrad_Flow(void);
+
+  /*!
+   * \brief 
+   */
+  su2double ComputeEddyViscosity_D1111_i(void);
+  su2double ComputeEddyViscosity_D1111_j(void);
+
+  /*!
+   * \brief 
+   */
+  su2double ComputeEddyViscosity_D2121_i(void);
+  su2double ComputeEddyViscosity_D2121_j(void);
 
   /*!
    * \brief Compute the viscous flow residual using an average of gradients.

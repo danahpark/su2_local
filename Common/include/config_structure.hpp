@@ -235,6 +235,7 @@ private:
                              from nMarker_All). */
   bool Inlet_From_File; /*!< \brief True if the inlet profile is to be loaded from a file. */
   string Inlet_Filename; /*!< \brief Filename specifying an inlet profile. */
+  string D0jilk_Filename; /*!< \brief Filename specifying an inlet profile. */
   su2double Inlet_Matching_Tol; /*!< \brief Tolerance used when matching a point to a point from the inlet file. */
   string *Marker_Euler,			/*!< \brief Euler wall markers. */
   *Marker_FarField,				/*!< \brief Far field markers. */
@@ -1009,6 +1010,7 @@ private:
   unsigned short Kind_RoeLowDiss;    /*!< \brief Kind of Roe scheme with low dissipation for unsteady flows. */
   bool QCR;                   /*!< \brief Spalart-Allmaras with Quadratic Constitutive Relation, 2000 version (SA-QCR2000) . */
   bool MFM;                   /*!< \brief Spalart-Allmaras with Macroscopic Forcing Method inspired Modification. */
+  bool fRANS;                   /*!< \brief Spalart-Allmaras with fixed RANS system with Macroscopic Forcing Method inspired Modification. */
   su2double *Eddy_Visc_MFM;   /*!< \brief Eddy viscosity tensorial coefficients inspired by Macroscopic Forcing Method. */
   su2double *default_vel_inf, /*!< \brief Default freestream velocity array for the COption class. */
   *default_eng_cyl,           /*!< \brief Default engine box array for the COption class. */
@@ -4709,6 +4711,12 @@ public:
    * \return Name of the input file for the specified inlet profile.
    */
   string GetInlet_FileName(void);
+
+  /*!
+   * \brief Get name of the input file for the specified tensorial eddy viscosity for fixed RANS.
+   * \return Name of the input file for the specified inlet profile.
+   */
+  string GetD0jilk_FileName(void);
 
   /*!
    * \brief Get the tolerance used for matching two points on a specified inlet
@@ -9018,6 +9026,11 @@ public:
    * \brief Get MFM (SA-MFM).
    */
   bool GetMFM(void);
+
+  /*!
+   * \brief Get fRANS (SA-fRANS).
+   */
+  bool GetfRANS(void);
 
   /*!
    * \brief Get MFM eddy viscosity element (SA-MFM).

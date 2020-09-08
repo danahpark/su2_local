@@ -4565,7 +4565,24 @@ void CEulerSolver::Centered_Residual(CGeometry *geometry, CSolver **solver_conta
     iPoint = geometry->edge[iEdge]->GetNode(0); jPoint = geometry->edge[iEdge]->GetNode(1);
     numerics->SetNormal(geometry->edge[iEdge]->GetNormal());
     numerics->SetDistanceGradient(geometry->node[iPoint]->GetWall_Distance_Gradient(),geometry->node[jPoint]->GetWall_Distance_Gradient());
+    numerics->SetD0jilk(geometry->node[iPoint]->GetD0jilk(),geometry->node[jPoint]->GetD0jilk());
+    numerics->SetDistance(geometry->node[iPoint]->GetWall_Distance(),geometry->node[jPoint]->GetWall_Distance());
     numerics->SetNeighbor(geometry->node[iPoint]->GetnNeighbor(), geometry->node[jPoint]->GetnNeighbor());
+    
+    /*--- Set primitive variables w/o reconstruction ---*/
+    
+    numerics->SetPrimitive(node[iPoint]->GetPrimitive(), node[jPoint]->GetPrimitive());
+
+    /*--- Set the largest convective eigenvalue ---*/
+    
+    numerics->SetLambda(node[iPoint]->GetLambda(), node[jPoint]->GetLambda());
+    
+    /*--- Set undivided laplacian an pressure based sensor ---*/
+    
+    if (jst_scheme) {
+      numerics->SetUndivided_Laplacian(node[iPoint]->GetUndivided_Laplacian(), node[jPoint]->GetUndivided_Laplacian());
+      numerics->SetSensor(node[iPoint]->GetSensor(), node[jPoint]->GetSensor());
+    }
     
     /*--- Set primitive variables w/o reconstruction ---*/
     
@@ -4642,6 +4659,8 @@ void CEulerSolver::Upwind_Residual(CGeometry *geometry, CSolver **solver_contain
     iPoint = geometry->edge[iEdge]->GetNode(0); jPoint = geometry->edge[iEdge]->GetNode(1);
     numerics->SetNormal(geometry->edge[iEdge]->GetNormal());
     numerics->SetDistanceGradient(geometry->node[iPoint]->GetWall_Distance_Gradient(),geometry->node[jPoint]->GetWall_Distance_Gradient());
+    numerics->SetD0jilk(geometry->node[iPoint]->GetD0jilk(),geometry->node[jPoint]->GetD0jilk());
+    numerics->SetDistance(geometry->node[iPoint]->GetWall_Distance(),geometry->node[jPoint]->GetWall_Distance());
     
     /*--- Roe Turkel preconditioning ---*/
     
@@ -4813,7 +4832,7 @@ void CEulerSolver::Upwind_Residual(CGeometry *geometry, CSolver **solver_contain
         numerics->SetCoord(Coord_i, Coord_j);
       }
     }
-      
+
     /*--- Compute the residual ---*/
     
     numerics->ComputeResidual(Res_Conv, Jacobian_i, Jacobian_j, config);
@@ -16082,6 +16101,8 @@ void CNSSolver::Viscous_Residual(CGeometry *geometry, CSolver **solver_container
     numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[jPoint]->GetCoord());
     numerics->SetNormal(geometry->edge[iEdge]->GetNormal());
     numerics->SetDistanceGradient(geometry->node[iPoint]->GetWall_Distance_Gradient(),geometry->node[jPoint]->GetWall_Distance_Gradient());
+    numerics->SetD0jilk(geometry->node[iPoint]->GetD0jilk(),geometry->node[jPoint]->GetD0jilk());
+    numerics->SetDistance(geometry->node[iPoint]->GetWall_Distance(),geometry->node[jPoint]->GetWall_Distance());
     
     /*--- Primitive and secondary variables ---*/
     
@@ -16101,6 +16122,24 @@ void CNSSolver::Viscous_Residual(CGeometry *geometry, CSolver **solver_container
     /*--- Wall shear stress values (wall functions) ---*/
     
     numerics->SetTauWall(node[iPoint]->GetTauWall(), node[iPoint]->GetTauWall());
+
+    /*--- Set Eddy Viscosity Value for D1111 ---*/
+
+    if(geometry->node[iPoint]->GetEddyViscosity_D1111switch())
+      geometry->node[iPoint]->SetEddyViscosity_D1111(numerics->ComputeEddyViscosity_D1111_i());
+    if(geometry->node[jPoint]->GetEddyViscosity_D1111switch())
+      geometry->node[jPoint]->SetEddyViscosity_D1111(numerics->ComputeEddyViscosity_D1111_j());
+
+    numerics->SetEddyViscosity_D1111(geometry->node[iPoint]->GetEddyViscosity_D1111(),geometry->node[jPoint]->GetEddyViscosity_D1111());
+
+    /*--- Set Eddy Viscosity Value for D2121 ---*/
+
+    if(geometry->node[iPoint]->GetEddyViscosity_D2121switch())
+      geometry->node[iPoint]->SetEddyViscosity_D2121(numerics->ComputeEddyViscosity_D2121_i());
+    if(geometry->node[jPoint]->GetEddyViscosity_D2121switch())
+      geometry->node[jPoint]->SetEddyViscosity_D2121(numerics->ComputeEddyViscosity_D2121_j());
+
+    numerics->SetEddyViscosity_D2121(geometry->node[iPoint]->GetEddyViscosity_D2121(),geometry->node[jPoint]->GetEddyViscosity_D2121());
 
     /*--- Compute and update residual ---*/
     
@@ -16156,6 +16195,7 @@ void CNSSolver::Friction_Forces(CGeometry *geometry, CConfig *config) {
   su2double Prandtl_Lam     = config->GetPrandtl_Lam();
   bool QCR                  = config->GetQCR();
   bool MFM                  = config->GetMFM();
+  bool fRANS                = config->GetfRANS();
   bool axisymmetric         = config->GetAxisymmetric();
 
   /*--- Evaluate reference values for non-dimensionalization.

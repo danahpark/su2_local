@@ -604,6 +604,12 @@ public:
 	 * \brief A virtual member.
 	 * \param[in] config - Definition of the particular problem.		 
 	 */
+	virtual void ReadD0jilk(CConfig *config);
+
+	/*! 
+	 * \brief A virtual member.
+	 * \param[in] config - Definition of the particular problem.		 
+	 */
 	virtual void SetPositive_ZArea(CConfig *config);
   
 	/*! 
@@ -1880,6 +1886,12 @@ public:
 	 */
 	bool FindFace(unsigned long first_elem, unsigned long second_elem, unsigned short &face_first_elem, 
 			unsigned short &face_second_elem);
+
+	/*! 
+	 * \brief Reads D0jilk for fRANS
+	 * \param[in] config - Definition of the particular problem.
+	 */
+	void ReadD0jilk(CConfig *config);
 
 	/*! 
 	 * \brief Computes the distance to the nearest no-slip wall for each grid node.

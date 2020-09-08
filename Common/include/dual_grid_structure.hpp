@@ -169,6 +169,11 @@ private:
   unsigned short color;               /*!< \brief Color of the point in the partitioning strategy. */
   su2double Wall_Distance;            /*!< \brief Distance to the nearest wall. */
   su2double *Wall_Distance_Gradient;  /*!< \brief Gradient of distance to the nearest wall. */
+  su2double EddyViscosity_D1111;      /*!< \brief Eddy viscosity of D1111 inspired by the Macroscopic Forcing Method. */
+  su2double EddyViscosity_D2121;      /*!< \brief Eddy viscosity of D2121 inspired by the Macroscopic Forcing Method. */
+  bool EddyViscosity_D1111switch;     /*!< \brief Switch for the eddy viscosity of D1111 inspired by the Macroscopic Forcing Method. */
+  bool EddyViscosity_D2121switch;     /*!< \brief Switch for the eddy viscosity of D2121 inspired by the Macroscopic Forcing Method. */
+  su2double *D0jilk;  /*!< \brief Eddy viscosity for fRANS [16, npoint] */
   su2double SharpEdge_Distance;       /*!< \brief Distance to a sharp edge. */
   su2double Curvature;                /*!< \brief Value of the surface curvature (SU2_GEO). */
   unsigned long GlobalIndex;          /*!< \brief Global index in the parallel simulation. */
@@ -234,6 +239,25 @@ public:
 	 * \param[in] val_gradient- Value of the gradient.
 	 */
 	void SetWall_Distance_Gradient(unsigned short val_dim, su2double val_gradient);
+
+  /*!
+	 * \brief Set the fRANS eddy viscosity
+	 * \param[in] val_dim - Index of the dimension.
+	 * \param[in] val_value - Value of the gradient.
+	 */
+	void SetD0jilk(unsigned short val_dim, su2double val_value);
+  
+	/*! 
+	 * \brief Set the value of the eddy viscosity D1111 inspired by Macroscopic Forcing Method.
+	 * \param[in] val_viscosity - Value of the D1111.
+	 */
+	void SetEddyViscosity_D1111(su2double val_viscosity);
+  
+	/*! 
+	 * \brief Set the value of the eddy viscosity D2121 inspired by Macroscopic Forcing Method.
+	 * \param[in] val_viscosity - Value of the D2121.
+	 */
+	void SetEddyViscosity_D2121(su2double val_viscosity);
   
   /*!
 	 * \brief Set the value of the distance to a sharp edge.
@@ -260,6 +284,43 @@ public:
 	 */
   su2double GetWall_Distance_Gradient(unsigned short val_dim);
 	
+	/*! 
+	 * \brief Get the value of the eddy viscosity for fRANS
+	 * \return D0jilk at the point.
+	 */	
+	su2double *GetD0jilk(void);
+
+	/*! 
+	 * \brief Get the value of the eddy viscosity for fRANS
+	 * \param[in] val_dim- Value of the dimension.
+	 * \return Value of D0jilk.
+	 */
+  su2double GetD0jilk(unsigned short val_dim);
+
+	/*! 
+	 * \brief Get the value of the eddy viscosity D1111.
+	 * \return Value of the eddy viscosity D1111.
+	 */
+	su2double GetEddyViscosity_D1111(void);
+
+	/*! 
+	 * \brief Get the switch of the eddy viscosity D1111.
+	 * \return Value of the eddy viscosity D1111.
+	 */
+	bool GetEddyViscosity_D1111switch(void);
+
+	/*! 
+	 * \brief Get the value of the eddy viscosity D2121.
+	 * \return Value of the eddy viscosity D2121.
+	 */
+	su2double GetEddyViscosity_D2121(void);
+
+	/*! 
+	 * \brief Get the switch of the eddy viscosity D2121.
+	 * \return Value of the eddy viscosity D2121.
+	 */
+	bool GetEddyViscosity_D2121switch(void);
+
   /*!
 	 * \brief Set the value of the curvature at a surface node.
 	 * \param[in] val_curvature - Value of the curvature.

@@ -51,6 +51,14 @@ inline su2double CNumerics::Determinant_3x3(su2double A00,
   
 }
 
+inline su2double CNumerics::ComputeEddyViscosity_D1111_i(void) { }
+
+inline su2double CNumerics::ComputeEddyViscosity_D1111_j(void) { }
+
+inline su2double CNumerics::ComputeEddyViscosity_D2121_i(void) { }
+
+inline su2double CNumerics::ComputeEddyViscosity_D2121_j(void) { }
+
 inline void CNumerics::Compute_Mass_Matrix(CElement *element_container, CConfig *config) { }
 
 inline void CNumerics::Compute_Dead_Load(CElement *element_container, CConfig *config) { }
@@ -294,6 +302,16 @@ inline void CNumerics::SetEddyViscosity(su2double val_eddy_viscosity_i, su2doubl
   Eddy_Viscosity_j = val_eddy_viscosity_j;
 }
 
+inline void CNumerics::SetEddyViscosity_D1111(su2double val_eddy_viscosity_i, su2double val_eddy_viscosity_j) {
+  EddyViscosity_D1111_i= val_eddy_viscosity_i;
+  EddyViscosity_D1111_j= val_eddy_viscosity_j;
+}
+
+inline void CNumerics::SetEddyViscosity_D2121(su2double val_eddy_viscosity_i, su2double val_eddy_viscosity_j) {
+  EddyViscosity_D2121_i= val_eddy_viscosity_i;
+  EddyViscosity_D2121_j= val_eddy_viscosity_j;
+}
+
 inline void CNumerics::SetIntermittency(su2double intermittency_in) { }
 
 inline void CNumerics::SetProduction(su2double val_production) { }
@@ -323,6 +341,11 @@ inline void CNumerics::SetDistance(su2double val_dist_i, su2double val_dist_j) {
 inline void CNumerics::SetDistanceGradient(su2double *val_dist_grad_i, su2double *val_dist_grad_j) {
   dist_grad_i = val_dist_grad_i;
   dist_grad_j = val_dist_grad_j;
+}
+
+inline void CNumerics::SetD0jilk(su2double *val_D0jilk_i, su2double *val_D0jilk_j) {
+  D0jilk_i = val_D0jilk_i;
+  D0jilk_j = val_D0jilk_j;
 }
 
 inline void CNumerics::SetAdjointVar(su2double *val_psi_i, su2double *val_psi_j) {

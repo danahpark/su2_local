@@ -633,8 +633,20 @@ void CAvgGradInc_Flow::ComputeResidual(su2double *val_residual, su2double **val_
   }
   
   /*--- Get projected flux tensor ---*/
-  SetStressTensor(Mean_PrimVar, Mean_GradPrimVar, Mean_turb_ke,
-         Mean_Laminar_Viscosity, Mean_Eddy_Viscosity);
+  if (config->GetMFM()){
+    if (config->GetfRANS()){
+      SetStressTensorfRANS(Mean_PrimVar, Mean_GradPrimVar, Mean_turb_ke, Mean_Laminar_Viscosity, Mean_Eddy_Viscosity, (dist_i+dist_j)*0.5, Mean_GradWallDist, Mean_D0jilk);
+    }
+    else{
+      SetStressTensorMFM(Mean_PrimVar, Mean_GradPrimVar, Mean_turb_ke, Mean_Laminar_Viscosity, Mean_Eddy_Viscosity, (dist_i+dist_j)*0.5, Mean_GradWallDist);
+    }
+  }
+  else{
+    SetStressTensor(Mean_PrimVar, Mean_GradPrimVar, Mean_turb_ke, Mean_Laminar_Viscosity, Mean_Eddy_Viscosity);
+    //if (config->GetQCR()) AddQCR(Mean_GradPrimVar);
+  }
+  //SetStressTensor(Mean_PrimVar, Mean_GradPrimVar, Mean_turb_ke,
+  //       Mean_Laminar_Viscosity, Mean_Eddy_Viscosity);
   GetViscousIncProjFlux(Mean_GradPrimVar, Normal, Mean_Thermal_Conductivity);
   
   /*--- Update viscous residual ---*/

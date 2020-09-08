@@ -4788,6 +4788,8 @@ CAvgGrad_Base::CAvgGrad_Base(unsigned short val_nDim,
 
   Mean_GradWallDist = new su2double[nDim];
   
+  Mean_D0jilk = new su2double[nDim*nDim*nDim*nDim];
+  
   if (correct_gradient) {
     Proj_Mean_GradPrimVar_Edge = new su2double[val_nPrimVar];
   } else {
@@ -4829,6 +4831,8 @@ CAvgGrad_Base::~CAvgGrad_Base() {
   delete [] Mean_GradWallDist;
   if (Proj_Mean_GradPrimVar_Edge != NULL)
     delete [] Proj_Mean_GradPrimVar_Edge;
+
+  delete [] Mean_D0jilk;
 }
 
 void CAvgGrad_Base::CorrectGradient(su2double** GradPrimVar,
@@ -4907,10 +4911,10 @@ void CAvgGrad_Base::AddQCR(const su2double* const *val_gradprimvar) {
   }
 }
 
-void CAvgGrad_Base::SetStressTensorMFM(const su2double *val_primvar, const su2double* const *val_gradprimvar, const su2double val_turb_ke, const su2double val_laminar_viscosity, const su2double val_eddy_viscosity, const su2double *val_wall_dist_grad) {
+void CAvgGrad_Base::SetStressTensorMFM(const su2double *val_primvar, const su2double* const *val_gradprimvar, const su2double val_turb_ke, const su2double val_laminar_viscosity, const su2double val_eddy_viscosity, const su2double val_wall_dist, const su2double *val_wall_dist_grad) {
     
   unsigned short iDim, jDim, kDim, lDim;
-  su2double VecNorm, InnerProd, VelNorm[nDim], TauElemRot[nDim], CoordRot[nDim][nDim], VelGradRot[nDim][nDim], TauRot[nDim][nDim];
+  su2double VecNorm, InnerProd, VelProj, Alpha, VelNorm[nDim], TauElemRot[nDim], CoordRot[nDim][nDim], VelGradRot[nDim][nDim], TauRot[nDim][nDim];
   su2double Djilk[nDim][nDim][nDim][nDim];
   const su2double total_viscosity = val_laminar_viscosity + val_eddy_viscosity;
   const su2double Density = val_primvar[nDim+2];
@@ -4919,10 +4923,15 @@ void CAvgGrad_Base::SetStressTensorMFM(const su2double *val_primvar, const su2do
   VecNorm = 0.0;
   for (iDim = 0; iDim < nDim; iDim++)
     VecNorm += val_wall_dist_grad[iDim]*val_wall_dist_grad[iDim];
-  VecNorm = sqrt(max(VecNorm,1E-15));
+  //VecNorm = sqrt(max(VecNorm,1E-15));
+  VecNorm = sqrt(VecNorm);
 
   for (iDim = 0; iDim < nDim; iDim++)
     CoordRot[1][iDim] = val_wall_dist_grad[iDim]/VecNorm;
+
+  /*--- Enforce (0,1,0) for local coordinate ---*/
+  //CoordRot[1][0] = 0.0;
+  //CoordRot[1][1] = 1.0;
 
   /*--- Normalize velocity vector and compute the inner product ---*/
   VecNorm = 0.0;
@@ -4966,6 +4975,15 @@ void CAvgGrad_Base::SetStressTensorMFM(const su2double *val_primvar, const su2do
     CoordRot[2][1] = CoordRot[0][2]*CoordRot[1][0] - CoordRot[0][0]*CoordRot[1][2];
     CoordRot[2][2] = CoordRot[0][0]*CoordRot[1][1] - CoordRot[0][1]*CoordRot[1][0];
   }
+  /*--- Enforce (0,1,0) for local coordinate ---*/
+  //CoordRot[0][0] = 1.0;
+  //CoordRot[0][1] = 0.0;
+  
+  /*--- Enforce input flow direction x_1' for local coordinate ---*/
+  //CoordRot[0][0] = CoordRot[1][1];
+  //CoordRot[0][1] = -CoordRot[1][0];
+  //if (nDim == 3) 
+  //  CoordRot[0][2] = CoordRot[1][2];
 
   /*--- Transform the velocity gradient tensor to the new reference frame, the local coordinate ---*/
   for (iDim = 0; iDim < nDim; iDim++) {
@@ -4974,6 +4992,7 @@ void CAvgGrad_Base::SetStressTensorMFM(const su2double *val_primvar, const su2do
       for (kDim = 0; kDim < nDim; kDim++) {
         for (lDim = 0; lDim < nDim; lDim++) {
           VelGradRot[iDim][jDim] += CoordRot[iDim][kDim]*CoordRot[jDim][lDim]*val_gradprimvar[kDim+1][lDim];
+          //Here VelGradRot[iDim][jDim] correspond to dU_i/dx_j
         }
       }
     }
@@ -4993,6 +5012,7 @@ void CAvgGrad_Base::SetStressTensorMFM(const su2double *val_primvar, const su2do
   
   /*--- Test 4: Further reduced SA + SA eddy diffusivity tensor---*/
   /*--- Test 5: More reduced SA + SA eddy diffusivity tensor---*/
+  //if ( 0.5*(Coord_i[0]+Coord_j[0]) >= 0.665 || Eddy_Visc_MFM == NULL) {//switching to SA
   if (Eddy_Visc_MFM == NULL) {
     Djilk[1][0][1][0] = val_eddy_viscosity;
     Djilk[1][0][0][1] = val_eddy_viscosity;
@@ -5013,25 +5033,91 @@ void CAvgGrad_Base::SetStressTensorMFM(const su2double *val_primvar, const su2do
         }
       }
     }
-/*
-  Djilk[1][0][1][0] = val_eddy_viscosity;
-  Djilk[1][0][0][1] = val_eddy_viscosity;
-  Djilk[0][1][0][1] = val_eddy_viscosity;
-  Djilk[0][1][1][0] = val_eddy_viscosity;
-  Djilk[0][0][0][0] = 10.*val_eddy_viscosity;
-  Djilk[1][1][1][1] = 2.*val_eddy_viscosity;
-  Djilk[0][0][1][0] = -val_eddy_viscosity;
-  Djilk[1][1][1][0] = -val_eddy_viscosity;
-*/
-  }
+  /*--- Enforce (0,1,0) for local coordinate ---*/
+  //CoordRot[0][0] = 1.0;
+  //CoordRot[0][1] = 0.0;
+  
+    /*--- Add tangent hyperbolic function to smooth out the viscosity change ---*/
+    Alpha = 0.1;
+    VelProj = val_primvar[1]*CoordRot[0][0] + val_primvar[2]*CoordRot[0][1];
+    Djilk[0][0][0][1] = Eddy_Visc_MFM[1] * tanh(Alpha*Density*VelProj*val_wall_dist/val_eddy_viscosity) * val_eddy_viscosity;
+    Djilk[0][0][1][0] = Eddy_Visc_MFM[2] * tanh(Alpha*Density*VelProj*val_wall_dist/val_eddy_viscosity) * val_eddy_viscosity;
+    Djilk[0][1][0][0] = Eddy_Visc_MFM[4] * tanh(Alpha*Density*VelProj*val_wall_dist/val_eddy_viscosity) * val_eddy_viscosity;
+    Djilk[0][1][1][1] = Eddy_Visc_MFM[7] * tanh(Alpha*Density*VelProj*val_wall_dist/val_eddy_viscosity) * val_eddy_viscosity;
+    Djilk[1][0][0][0] = Eddy_Visc_MFM[8] * tanh(Alpha*Density*VelProj*val_wall_dist/val_eddy_viscosity) * val_eddy_viscosity;
+    Djilk[1][0][1][1] = Eddy_Visc_MFM[11] * tanh(Alpha*Density*VelProj*val_wall_dist/val_eddy_viscosity) * val_eddy_viscosity;
+    Djilk[1][1][0][1] = Eddy_Visc_MFM[13] * tanh(Alpha*Density*VelProj*val_wall_dist/val_eddy_viscosity) * val_eddy_viscosity;
+    Djilk[1][1][1][0] = Eddy_Visc_MFM[14] * tanh(Alpha*Density*VelProj*val_wall_dist/val_eddy_viscosity) * val_eddy_viscosity;
 
+    /*--- Add fitting for D1111 ---*/
+    //x_temp = min(val_wall_dist*abs(VelGradRot[0][1])/max(VelProj,1E-10),1.0);
+    //x_temp = val_wall_dist*abs(VelGradRot[1][0]-VelGradRot[0][1])/max(VelProj,1E-10);
+    //Djilk[0][0][0][0] = val_eddy_viscosity*x_temp;
+    //Djilk[0][0][0][0] = val_eddy_viscosity*(100.0*x_temp+(330.0*x_temp-50.0)*(1.0+tanh((x_temp-0.165)/0.02))/2.);
+    //Djilk[0][0][0][0] = val_eddy_viscosity*(10.0+(330.0*x_temp-50.0)*(1.0+tanh((x_temp-0.165)/0.02))/2.);
+    //Djilk[0][0][0][0] = val_wall_dist*(VelGradRot[1][0]-VelGradRot[0][1])*(VelGradRot[1][0]-VelGradRot[0][1])*(3.0*exp(-x_temp*40.0)+0.3);
+    //Djilk[0][0][0][0] = Density*val_wall_dist*VelProj*(0.25*x_temp+2.92*(x_temp-0.08)*(1.0+tanh((x_temp-0.165)/0.02))/2.);
+    //cout << "SWITCH" << Djilkswitch << endl;
+
+    //cout << "---------------------------------" << endl;
+    //cout << Djilkswitch << endl;
+    //if (Djilkswitch) {
+    //su2double x_temp;
+    //x_temp = min(val_wall_dist*abs(VelGradRot[1][0]-VelGradRot[0][1])/max(VelProj,1E-10),1.0);
+     // D1111_ij = Density*val_wall_dist*VelProj*(0.25*x_temp+2.92*(x_temp-0.08)*(1.0+tanh((x_temp-0.165)/0.02))/2.);
+      //Djilkswitch = 0;
+    //}
+    
+
+
+    Djilk[0][0][0][0] = (EddyViscosity_D1111_i + EddyViscosity_D1111_j)*0.5;
+    Djilk[1][0][1][0] = (EddyViscosity_D2121_i + EddyViscosity_D2121_j)*0.5;
+   
+    
+    //cout << Coord_i[0] << ", " << Coord_i[1] << ", " << Djilk[1][0][1][0] << endl;
+    //cout << Djilkswitch << endl;
+    //cout << Coord_i[0] << ", " << Coord_i[1] << ", " << Djilk[0][0][0][0] << endl;
+    //Djilk[0][0][0][0] = min(Djilk[0][0][0][0], 100.0);
+    //cout << "---------------------------------" << endl;
+    //cout << x_temp << endl;
+    //cout << VelProj << endl;
+    //cout << val_wall_dist << endl;
+    //cout << Djilk[0][0][0][0]/val_wall_dist/VelProj/Density << endl;
+    //cout << Djilk[1][0][1][0]/val_wall_dist/VelProj/Density << endl;
+    //if (Coord_i[0] <0.6)
+    //if (Coord_i[0] <0.3)
+    //cout << x_temp << ", " << Djilk[1][0][1][0]/val_wall_dist/VelProj/Density << endl;
+    //cout << Djilk[0][0][0][0]/Djilk[1][0][1][0] << endl;
+
+  }
+  /*--- Add SA switching in the back-flow region ---*/
+  /*
+  if ( CoordRot[0][0] < 0 ) {
+    for (jDim = 0; jDim < nDim; jDim++) {
+      for (iDim = 0; iDim < nDim; iDim++) {
+        for (lDim = 0; lDim < nDim; lDim++) {
+          for (kDim = 0; kDim < nDim; kDim++) {
+            Djilk[jDim][iDim][lDim][kDim] = 0.0;
+          }
+        }
+      }
+    }
+    Djilk[1][0][1][0] = val_eddy_viscosity;
+    Djilk[1][0][0][1] = val_eddy_viscosity;
+    Djilk[0][1][0][1] = val_eddy_viscosity;
+    Djilk[0][1][1][0] = val_eddy_viscosity;
+    Djilk[0][0][0][0] = 2.*val_eddy_viscosity;
+    Djilk[1][1][1][1] = 2.*val_eddy_viscosity;
+  }
+  */
   /*--- Multiply tensorial eddy viscosity ---*/
   for (iDim = 0; iDim < nDim; iDim++) {
     for (jDim = 0; jDim < nDim; jDim++) {
       TauRot[jDim][iDim] = 0.0;
       for (kDim = 0; kDim < nDim; kDim++) {
         for (lDim = 0; lDim < nDim; lDim++) {
-          TauRot[jDim][iDim] += Djilk[jDim][iDim][lDim][kDim]*VelGradRot[lDim][kDim];
+          TauRot[jDim][iDim] += Djilk[jDim][iDim][lDim][kDim]*VelGradRot[kDim][lDim];
+          //Here VelGradRot[kDim][lDim] correspond to dU_k/dx_l
         }
       }
     }
@@ -5076,16 +5162,92 @@ void CAvgGrad_Base::SetStressTensorMFM(const su2double *val_primvar, const su2do
   }
 
   /*--- This part is to print the results and test, remove when complete ---*/
+  //if (((Coord_i[0] > 0.5 && Coord_i[0] < 1) && Coord_i[1] < 0.2) && CoordRot[0][0] < 0 ) {
+  //if (CoordRot[0][0] < 0 ) {
+  //cout << "----------------------------------------------------------" << endl;
+  //cout << Coord_i[0] << ", " << Coord_i[1] << endl;
+  //cout << "Point: (" << Coord_i[0] << ", " << Coord_i[1] << ")" << endl;
+  //cout << "grad(d): (" << val_wall_dist_grad[0] << ", " << val_wall_dist_grad[1] << ")" << endl;
+  //cout << "x1': (" << CoordRot[0][0] << ", " << CoordRot[0][1] << ")" << endl;
+  //cout << "x2': (" << CoordRot[1][0] << ", " << CoordRot[1][1] << ")" << endl;
+  //cout << "u1x1,u1x2,u2x1,u2x2: (" << val_gradprimvar[1][0] << ", " << val_gradprimvar[1][1] << ", " << val_gradprimvar[2][0] << ", " << val_gradprimvar[2][1] << ")" << endl;
+  //cout << "u1x1,u1x2,u2x1,u2x2: (" << VelGradRot[0][0] << ", " << VelGradRot[0][1] << ", " <<VelGradRot[1][0] << ", " <<VelGradRot[1][1] <<  ")" << endl;
+  //cout << "D1111,D2121: (" << Djilk[0][0][0][0] << ", " << Djilk[1][0][1][0] << ")" <<  endl;
+  //}
+}
+
+void CAvgGrad_Base::SetStressTensorfRANS(const su2double *val_primvar, const su2double* const *val_gradprimvar, const su2double val_turb_ke, const su2double val_laminar_viscosity, const su2double val_eddy_viscosity, const su2double val_wall_dist, const su2double *val_wall_dist_grad, const su2double * val_D0jilk) {
+    
+  unsigned short iDim, jDim, kDim, lDim, idx;
+  const su2double Density = val_primvar[nDim+2];
+  su2double Tau[nDim][nDim];
+  su2double Djilk[nDim][nDim][nDim][nDim];
+  
+  //cout << "TEST:: Calling from SetStressTensorfRANS" << std::endl;
+
+  /*--- Set tensorial eddy viscosity ---*/
+  for (iDim = 0; iDim < nDim; iDim++) {
+    for (jDim = 0; jDim < nDim; jDim++) {
+      for (kDim = 0; kDim < nDim; kDim++) {
+        for (lDim = 0; lDim < nDim; lDim++) {
+          Djilk[iDim][jDim][kDim][lDim] = 0.0;
+        }
+      }
+    }
+  }
+
   /*
-  cout << "----------------------------------------------------------" << endl;
-  cout << "Point: (" << Coord_i[0] << ", " << Coord_i[1] << ")" << endl;
-  cout << "grad(d): (" << val_wall_dist_grad[0] << ", " << val_wall_dist_grad[1] << ")" << endl;
-  cout << "x1': (" << CoordRot[0][0] << ", " << CoordRot[0][1] << ")" << endl;
-  cout << "x2': (" << CoordRot[1][0] << ", " << CoordRot[1][1] << ")" << endl;
-  cout << "u1x1,u1x2,u2x1,u2x2: (" << val_gradprimvar[1][0] << ", " << val_gradprimvar[1][1] << ", " << val_gradprimvar[2][0] << ", " << val_gradprimvar[2][1] << ")" << endl;
-  cout << "u1x1,u1x2,u2x1,u2x2: (" << VelGradRot[0][0] << ", " << VelGradRot[0][1] << ", " <<VelGradRot[1][0] << ", " <<VelGradRot[1][1] <<  ")" << endl;
-  cout << "D1111,D2121: (" << Djilk[0][0][0][0] << ", " << Djilk[1][0][1][0] << ")" <<  endl;
+  Djilk[1][0][1][0] = val_eddy_viscosity;
+  Djilk[1][0][0][1] = val_eddy_viscosity;
+  Djilk[0][1][0][1] = val_eddy_viscosity;
+  Djilk[0][1][1][0] = val_eddy_viscosity;
+  Djilk[0][0][0][0] = 2.*val_eddy_viscosity;
+  Djilk[1][1][1][1] = 2.*val_eddy_viscosity;
   */
+
+  
+  idx = 0;
+  for (iDim = 0; iDim < nDim; iDim++) {
+    for (jDim = 0; jDim < nDim; jDim++) {
+      for (kDim = 0; kDim < nDim; kDim++) {
+        for (lDim = 0; lDim < nDim; lDim++) {
+          Djilk[iDim][jDim][kDim][lDim] = val_D0jilk[idx];
+          idx += 1;
+        }
+      }
+    }
+  }
+
+  /*--- Multiply tensorial eddy viscosity ---*/
+  for (iDim = 0; iDim < nDim; iDim++) {
+    for (jDim = 0; jDim < nDim; jDim++) {
+      Tau[jDim][iDim] = 0.0;
+      for (kDim = 0; kDim < nDim; kDim++) {
+        for (lDim = 0; lDim < nDim; lDim++) {
+          //val_gradprimvar[kDim+1][lDim] = dU_k/dx_l
+          Tau[jDim][iDim] += Djilk[jDim][iDim][lDim][kDim]*val_gradprimvar[kDim+1][lDim];
+        }
+      }
+    }
+  }
+
+  /*--- Set stress tensor ---*/
+  /*--- UQ methodology is not adopted here ---*/
+  su2double div_vel = 0.0;
+  for (iDim = 0 ; iDim < nDim; iDim++)
+    div_vel += val_gradprimvar[iDim+1][iDim];
+
+   for (iDim = 0 ; iDim < nDim; iDim++)
+     for (jDim = 0 ; jDim < nDim; jDim++)
+       tau[iDim][jDim] = val_laminar_viscosity*( val_gradprimvar[jDim+1][iDim] + val_gradprimvar[iDim+1][jDim] );
+       //tau[iDim][jDim] = val_laminar_viscosity*( val_gradprimvar[jDim+1][iDim] );
+       //                - TWO3*total_viscosity*div_vel*delta[iDim][jDim];
+
+  /*--- Append the effects of the Reynolds stress ---*/
+   for (iDim = 0; iDim < nDim; iDim++)
+     for (jDim = 0; jDim < nDim; jDim++)
+           tau[iDim][jDim] += Tau[iDim][jDim];
+
 }
 
 void CAvgGrad_Base::AddTauWall(const su2double *val_normal,
@@ -5491,6 +5653,252 @@ CAvgGrad_Flow::~CAvgGrad_Flow(void) {
 
 }
 
+su2double CAvgGrad_Flow::ComputeEddyViscosity_D1111_i() {
+  
+  unsigned short iVar, jVar;
+  unsigned short iDim, jDim, kDim, lDim;
+  su2double VecNorm, InnerProd, VelProj, Alpha, VelNorm[nDim], TauElemRot[nDim], CoordRot[nDim][nDim], VelGradRot[nDim][nDim], TauRot[nDim][nDim];
+  su2double D1111;
+  su2double Density, Mean_WallDist;
+
+  /*--- Compute for iPoint ---*/
+  for (iVar = 0; iVar < nPrimVar; iVar++) {
+    PrimVar_i[iVar] = V_i[iVar];
+    PrimVar_j[iVar] = V_j[iVar];
+    Mean_PrimVar[iVar] = PrimVar_i[iVar];
+    //Mean_PrimVar[iVar] = 0.5*(PrimVar_i[iVar]+PrimVar_j[iVar]);
+  }
+  
+
+  /*--- Eddy viscosity ---*/
+  
+  Eddy_Viscosity_i = V_i[nDim+6]; Eddy_Viscosity_j = V_j[nDim+6];
+  Mean_Eddy_Viscosity = Eddy_Viscosity_i;
+  //Mean_Eddy_Viscosity = 0.5*(Eddy_Viscosity_i + Eddy_Viscosity_j);
+  
+  /*--- Mean gradient approximation ---*/
+
+  for (iVar = 0; iVar < nDim+1; iVar++) {
+    for (iDim = 0; iDim < nDim; iDim++) {
+      Mean_GradPrimVar[iVar][iDim] = PrimVar_Grad_i[iVar][iDim];
+      //Mean_GradPrimVar[iVar][iDim] = 0.5*(PrimVar_Grad_i[iVar][iDim] + PrimVar_Grad_j[iVar][iDim]);
+    }
+  }
+  Density = Mean_PrimVar[nDim+2];
+
+  /*--- Average and the Mean gradient of the wall distance ---*/
+  Mean_WallDist = dist_i;
+  //Mean_WallDist = 0.5*(dist_i + dist_j);
+  for (iDim = 0; iDim < nDim; iDim++) {
+    Mean_GradWallDist[iDim] = dist_grad_i[iDim];
+    //Mean_GradWallDist[iDim] = 0.5*(dist_grad_i[iDim] + dist_grad_j[iDim]);
+  }
+
+  /*--- Compute unit vector parallel to the gradient of the wall-distance field ---*/ 
+  VecNorm = 0.0;
+  for (iDim = 0; iDim < nDim; iDim++)
+    VecNorm += Mean_GradWallDist[iDim]*Mean_GradWallDist[iDim];
+  //VecNorm = sqrt(max(VecNorm,1E-15));
+  VecNorm = sqrt(VecNorm);
+
+  for (iDim = 0; iDim < nDim; iDim++)
+    CoordRot[1][iDim] = Mean_GradWallDist[iDim]/VecNorm;
+
+  /*--- Normalize velocity vector and compute the inner product ---*/
+  VecNorm = 0.0;
+  for (iDim = 0; iDim < nDim; iDim++)
+    VecNorm += Mean_PrimVar[iDim+1]*Mean_PrimVar[iDim+1];
+  //VecNorm = sqrt(max(VecNorm,1E-10));
+  VecNorm = sqrt(VecNorm);
+  
+  for (iDim = 0; iDim < nDim; iDim++)
+    VelNorm[iDim] = Mean_PrimVar[iDim+1]/VecNorm;
+
+  InnerProd = 0.0;
+  for (iDim = 0; iDim < nDim; iDim++)
+    InnerProd += VelNorm[iDim]*CoordRot[1][iDim];
+
+  /*--- Compute unit vector orthogonal to the gradient of the wall-distance field and parallel to streamwise direction ---*/ 
+  if (abs(InnerProd) < (1.0-1E-5)) {
+    for (iDim = 0; iDim < nDim; iDim++)
+      CoordRot[0][iDim] = VelNorm[iDim] - InnerProd*CoordRot[1][iDim];
+
+    VecNorm = 0.0;
+    for (iDim = 0; iDim < nDim; iDim++)
+      VecNorm += CoordRot[0][iDim]*CoordRot[0][iDim];
+    //VecNorm = sqrt(max(VecNorm,1E-15));
+    VecNorm = sqrt(VecNorm);
+
+    for (iDim = 0; iDim < nDim; iDim++)
+      CoordRot[0][iDim] = CoordRot[0][iDim]/VecNorm;
+  }
+  /*--- If the velocity vector is parallel to the gradient of the wall-distance, simply rotate x_2' 90 degree in clockwise to compute x_1' ---*/
+  else {
+    CoordRot[0][0] = CoordRot[1][1];
+    CoordRot[0][1] = -CoordRot[1][0];
+    if (nDim == 3) 
+      CoordRot[0][2] = CoordRot[1][2];
+  }
+
+  /*--- Compute the last orthgonal basis using cross product ---*/
+  if (nDim == 3) {
+    CoordRot[2][0] = CoordRot[0][1]*CoordRot[1][2] - CoordRot[0][2]*CoordRot[1][1];
+    CoordRot[2][1] = CoordRot[0][2]*CoordRot[1][0] - CoordRot[0][0]*CoordRot[1][2];
+    CoordRot[2][2] = CoordRot[0][0]*CoordRot[1][1] - CoordRot[0][1]*CoordRot[1][0];
+  }
+
+  /*--- Transform the velocity gradient tensor to the new reference frame, the local coordinate ---*/
+  for (iDim = 0; iDim < nDim; iDim++) {
+    for (jDim = 0; jDim < nDim; jDim++) {
+      VelGradRot[iDim][jDim] = 0.0;
+      for (kDim = 0; kDim < nDim; kDim++) {
+        for (lDim = 0; lDim < nDim; lDim++) {
+          VelGradRot[iDim][jDim] += CoordRot[iDim][kDim]*CoordRot[jDim][lDim]*Mean_GradPrimVar[kDim+1][lDim];
+          //Here VelGradRot[iDim][jDim] correspond to dU_i/dx_j
+        }
+      }
+    }
+  }
+
+  VelProj = Mean_PrimVar[1]*CoordRot[0][0] + Mean_PrimVar[2]*CoordRot[0][1];
+
+  su2double x_temp;
+  x_temp = min(Mean_WallDist*abs(VelGradRot[1][0]-VelGradRot[0][1])/max(VelProj,1E-10),1.0);
+  D1111 = Density*Mean_WallDist*VelProj*(0.25*x_temp+2.92*(x_temp-0.08)*(1.0+tanh((x_temp-0.165)/0.02))/2.);
+  //D1111 = Mean_Eddy_Viscosity*(10.0+(330.0*x_temp-50.0)*(1.0+tanh((x_temp-0.165)/0.02))/2.);
+  //D1111 = Mean_Eddy_Viscosity*(100.0*x_temp+(330.0*x_temp-50.0)*(1.0+tanh((x_temp-0.165)/0.02))/2.);
+  //D1111 = Mean_Eddy_Viscosity*(100.0*x_temp+130.0*(x_temp-50.0/330.0)*(1.0+tanh((x_temp-0.165)/0.02))/2.);
+  //D1111 = Mean_Eddy_Viscosity*(10.0+130.0*(x_temp-50.0/330.0)*(1.0+tanh((x_temp-0.165)/0.02))/2.);
+  return D1111;
+
+}
+
+su2double CAvgGrad_Flow::ComputeEddyViscosity_D1111_j() {
+  
+  unsigned short iVar, jVar;
+  unsigned short iDim, jDim, kDim, lDim;
+  su2double VecNorm, InnerProd, VelProj, Alpha, VelNorm[nDim], TauElemRot[nDim], CoordRot[nDim][nDim], VelGradRot[nDim][nDim], TauRot[nDim][nDim];
+  su2double D1111;
+  su2double Density, Mean_WallDist;
+
+  /*--- Compute for iPoint ---*/
+  for (iVar = 0; iVar < nPrimVar; iVar++) {
+    PrimVar_i[iVar] = V_i[iVar];
+    PrimVar_j[iVar] = V_j[iVar];
+    Mean_PrimVar[iVar] = PrimVar_i[iVar];
+    //Mean_PrimVar[iVar] = 0.5*(PrimVar_i[iVar]+PrimVar_j[iVar]);
+  }
+
+  /*--- Eddy viscosity ---*/
+  
+  Eddy_Viscosity_i = V_i[nDim+6]; Eddy_Viscosity_j = V_j[nDim+6];
+  Mean_Eddy_Viscosity = Eddy_Viscosity_j;
+  //Mean_Eddy_Viscosity = 0.5*(Eddy_Viscosity_i + Eddy_Viscosity_j);
+  
+  /*--- Mean gradient approximation ---*/
+
+  for (iVar = 0; iVar < nDim+1; iVar++) {
+    for (iDim = 0; iDim < nDim; iDim++) {
+      Mean_GradPrimVar[iVar][iDim] = PrimVar_Grad_j[iVar][iDim];
+      //Mean_GradPrimVar[iVar][iDim] = 0.5*(PrimVar_Grad_i[iVar][iDim] + PrimVar_Grad_j[iVar][iDim]);
+    }
+  }
+  Density = Mean_PrimVar[nDim+2];
+
+  /*--- Average and the Mean gradient of the wall distance ---*/
+  Mean_WallDist = dist_j;
+  //Mean_WallDist = 0.5*(dist_i + dist_j);
+  for (iDim = 0; iDim < nDim; iDim++) {
+    Mean_GradWallDist[iDim] = dist_grad_j[iDim];
+    //Mean_GradWallDist[iDim] = 0.5*(dist_grad_i[iDim] + dist_grad_j[iDim]);
+  }
+
+  /*--- Compute unit vector parallel to the gradient of the wall-distance field ---*/ 
+  VecNorm = 0.0;
+  for (iDim = 0; iDim < nDim; iDim++)
+    VecNorm += Mean_GradWallDist[iDim]*Mean_GradWallDist[iDim];
+  //VecNorm = sqrt(max(VecNorm,1E-15));
+  VecNorm = sqrt(VecNorm);
+
+  for (iDim = 0; iDim < nDim; iDim++)
+    CoordRot[1][iDim] = Mean_GradWallDist[iDim]/VecNorm;
+
+  /*--- Normalize velocity vector and compute the inner product ---*/
+  VecNorm = 0.0;
+  for (iDim = 0; iDim < nDim; iDim++)
+    VecNorm += Mean_PrimVar[iDim+1]*Mean_PrimVar[iDim+1];
+  //VecNorm = sqrt(max(VecNorm,1E-10));
+  VecNorm = sqrt(VecNorm);
+  
+  for (iDim = 0; iDim < nDim; iDim++)
+    VelNorm[iDim] = Mean_PrimVar[iDim+1]/VecNorm;
+
+  InnerProd = 0.0;
+  for (iDim = 0; iDim < nDim; iDim++)
+    InnerProd += VelNorm[iDim]*CoordRot[1][iDim];
+
+  /*--- Compute unit vector orthogonal to the gradient of the wall-distance field and parallel to streamwise direction ---*/ 
+  if (abs(InnerProd) < (1.0-1E-5)) {
+    for (iDim = 0; iDim < nDim; iDim++)
+      CoordRot[0][iDim] = VelNorm[iDim] - InnerProd*CoordRot[1][iDim];
+
+    VecNorm = 0.0;
+    for (iDim = 0; iDim < nDim; iDim++)
+      VecNorm += CoordRot[0][iDim]*CoordRot[0][iDim];
+    //VecNorm = sqrt(max(VecNorm,1E-15));
+    VecNorm = sqrt(VecNorm);
+
+    for (iDim = 0; iDim < nDim; iDim++)
+      CoordRot[0][iDim] = CoordRot[0][iDim]/VecNorm;
+  }
+  /*--- If the velocity vector is parallel to the gradient of the wall-distance, simply rotate x_2' 90 degree in clockwise to compute x_1' ---*/
+  else {
+    CoordRot[0][0] = CoordRot[1][1];
+    CoordRot[0][1] = -CoordRot[1][0];
+    if (nDim == 3) 
+      CoordRot[0][2] = CoordRot[1][2];
+  }
+
+  /*--- Compute the last orthgonal basis using cross product ---*/
+  if (nDim == 3) {
+    CoordRot[2][0] = CoordRot[0][1]*CoordRot[1][2] - CoordRot[0][2]*CoordRot[1][1];
+    CoordRot[2][1] = CoordRot[0][2]*CoordRot[1][0] - CoordRot[0][0]*CoordRot[1][2];
+    CoordRot[2][2] = CoordRot[0][0]*CoordRot[1][1] - CoordRot[0][1]*CoordRot[1][0];
+  }
+
+  /*--- Transform the velocity gradient tensor to the new reference frame, the local coordinate ---*/
+  for (iDim = 0; iDim < nDim; iDim++) {
+    for (jDim = 0; jDim < nDim; jDim++) {
+      VelGradRot[iDim][jDim] = 0.0;
+      for (kDim = 0; kDim < nDim; kDim++) {
+        for (lDim = 0; lDim < nDim; lDim++) {
+          VelGradRot[iDim][jDim] += CoordRot[iDim][kDim]*CoordRot[jDim][lDim]*Mean_GradPrimVar[kDim+1][lDim];
+          //Here VelGradRot[iDim][jDim] correspond to dU_i/dx_j
+        }
+      }
+    }
+  }
+
+  VelProj = Mean_PrimVar[1]*CoordRot[0][0] + Mean_PrimVar[2]*CoordRot[0][1];
+
+  su2double x_temp;
+  x_temp = min(Mean_WallDist*abs(VelGradRot[1][0]-VelGradRot[0][1])/max(VelProj,1E-10),1.0);
+  D1111 = Density*Mean_WallDist*VelProj*(0.25*x_temp+2.92*(x_temp-0.08)*(1.0+tanh((x_temp-0.165)/0.02))/2.);
+  //D1111 = Mean_Eddy_Viscosity*(10.0+(330.0*x_temp-50.0)*(1.0+tanh((x_temp-0.165)/0.02))/2.);
+  //D1111 = Mean_Eddy_Viscosity*(100.0*x_temp+(330.0*x_temp-50.0)*(1.0+tanh((x_temp-0.165)/0.02))/2.);
+  //D1111 = Mean_Eddy_Viscosity*(100.0*x_temp+130.0*(x_temp-50.0/330.0)*(1.0+tanh((x_temp-0.165)/0.02))/2.);
+  //D1111 = Mean_Eddy_Viscosity*(10.0+130.0*(x_temp-50.0/330.0)*(1.0+tanh((x_temp-0.165)/0.02))/2.);
+  return D1111;
+}
+
+su2double CAvgGrad_Flow::ComputeEddyViscosity_D2121_i() {
+  return V_i[nDim+6];
+}
+
+su2double CAvgGrad_Flow::ComputeEddyViscosity_D2121_j() {
+  return V_j[nDim+6];
+}
+
 void CAvgGrad_Flow::ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, su2double **val_Jacobian_j, CConfig *config) {
 
   AD::StartPreacc();
@@ -5574,10 +5982,22 @@ void CAvgGrad_Flow::ComputeResidual(su2double *val_residual, su2double **val_Jac
     Mean_GradWallDist[iDim] = 0.5*(dist_grad_i[iDim] + dist_grad_j[iDim]);
   }
 
+  /*--- Mean eddy viscosity ---*/
+
+  for (iDim = 0; iDim < nDim*nDim*nDim*nDim; iDim++) {
+    Mean_D0jilk[iDim] = 0.5*(D0jilk_i[iDim] + D0jilk_j[iDim]);
+  }
+
   /*--- Get projected flux tensor ---*/
 
+  //cout << "TEST:: Calling from CAvgGrad_Flow::ComputeResidual" << std::endl;
   if (config->GetMFM()){
-    SetStressTensorMFM(Mean_PrimVar, Mean_GradPrimVar, Mean_turb_ke, Mean_Laminar_Viscosity, Mean_Eddy_Viscosity, Mean_GradWallDist);
+    if (config->GetfRANS()){
+      SetStressTensorfRANS(Mean_PrimVar, Mean_GradPrimVar, Mean_turb_ke, Mean_Laminar_Viscosity, Mean_Eddy_Viscosity, (dist_i+dist_j)*0.5, Mean_GradWallDist, Mean_D0jilk);
+    }
+    else{
+      SetStressTensorMFM(Mean_PrimVar, Mean_GradPrimVar, Mean_turb_ke, Mean_Laminar_Viscosity, Mean_Eddy_Viscosity, (dist_i+dist_j)*0.5, Mean_GradWallDist);
+    }
   }
   else{
     SetStressTensor(Mean_PrimVar, Mean_GradPrimVar, Mean_turb_ke, Mean_Laminar_Viscosity, Mean_Eddy_Viscosity);
@@ -5622,8 +6042,6 @@ void CAvgGrad_Flow::ComputeResidual(su2double *val_residual, su2double **val_Jac
   AD::EndPreacc();
   
 }
-
-
 
 void CAvgGrad_Flow::SetHeatFluxVector(const su2double* const *val_gradprimvar,
                                       const su2double val_laminar_viscosity,
@@ -5846,9 +6264,20 @@ void CGeneralAvgGrad_Flow::ComputeResidual(su2double *val_residual, su2double **
   }
 
   /*--- Get projected flux tensor ---*/
-  
-  SetStressTensor(Mean_PrimVar, Mean_GradPrimVar, Mean_turb_ke,
-         Mean_Laminar_Viscosity, Mean_Eddy_Viscosity);
+
+  //cout << "TEST:: Calling from CGeneralAvgGrad_Flow::ComputeResidual" << std::endl;
+  if (config->GetMFM()){
+    if (config->GetfRANS()){
+      SetStressTensorfRANS(Mean_PrimVar, Mean_GradPrimVar, Mean_turb_ke, Mean_Laminar_Viscosity, Mean_Eddy_Viscosity, (dist_i+dist_j)*0.5, Mean_GradWallDist, Mean_D0jilk);
+    }
+    else{
+      SetStressTensorMFM(Mean_PrimVar, Mean_GradPrimVar, Mean_turb_ke, Mean_Laminar_Viscosity, Mean_Eddy_Viscosity, (dist_i+dist_j)*0.5, Mean_GradWallDist);
+    }
+  }
+  else{
+    SetStressTensor(Mean_PrimVar, Mean_GradPrimVar, Mean_turb_ke, Mean_Laminar_Viscosity, Mean_Eddy_Viscosity);
+    //if (config->GetQCR()) AddQCR(Mean_GradPrimVar);
+  }
 
   SetHeatFluxVector(Mean_GradPrimVar, Mean_Laminar_Viscosity,
                     Mean_Eddy_Viscosity, Mean_Thermal_Conductivity, Mean_Cp);

@@ -10928,7 +10928,6 @@ void CPhysicalGeometry::Read_SU2_Format_Parallel(CConfig *config, string val_mes
   
 }
 
-
 void CPhysicalGeometry::Read_CGNS_Format_Parallel(CConfig *config, string val_mesh_filename, unsigned short val_iZone, unsigned short val_nZone) {
   
   /*--- Original CGNS reader implementation by Thomas D. Economon,
@@ -13230,81 +13229,240 @@ void CPhysicalGeometry::ComputeWall_Distance_Gradient(CConfig *config) {
 
 void CPhysicalGeometry::ReadD0jilk(CConfig *config) {
 
-  /*--- This new fuctions will read in the data in non-parallel way ---*/
-
-  /*--- and it can be improved later using the parallelization ---*/
-
-  if ( config->GetfRANS() == false ) return;
-
   string mesh_filename = config->GetD0jilk_FileName();
 
-  string text_line, idxstring;
-  string::size_type position;
+  string text_line, Marker_Tag;
   ifstream mesh_file;
-  unsigned long nEddy =0, iPoint = 0, totalpoints = 0;
-  unsigned short digit;
+  unsigned long VTK_Type, iMarker, iChar;
+  unsigned long iCount = 0;
+  unsigned long iElem_Bound = 0, iPoint = 0, ielem = 0;
+  unsigned long i;
+  unsigned long dummyLong, GlobalIndex, LocalIndex;
+  long local_index;
+  vector<unsigned long>::iterator it;
   char cstr[200];
+  string::size_type position;
+  bool domain_flag = false;
+  bool found_transform = false;
+
+  su2double *Dvector;
+  Dvector = new su2double[nDim*nDim*nDim*nDim];
   su2double Dvalue;
-  su2double ** GlobalEddyViscosity;
 
   /*--- Actuator disk is not implemented ---*/
+  /*---- Only one zone is consider for this case ---*/
 
-  /*--- Only one zone is consider for this case ---*/
+  /*--- Initialize some additional counters for the parallel partitioning ---*/
+  
+  unsigned long total_pt_accounted = 0;
+  unsigned long rem_points = 0;
+  unsigned long element_count = 0;
+  unsigned long boundary_marker_count = 0;
+  unsigned long node_count = 0;
+  unsigned long local_element_count = 0;
+  
+  /*--- Initialize counters for local/global points & elements ---*/
+  
+#ifdef HAVE_MPI
+  unsigned long j;
+#endif
+  
+  
+  Global_nPoint  = 0; Global_nPointDomain   = 0; Global_nElem = 0; Global_nElemDomain = 0;
+  nelem_edge     = 0; Global_nelem_edge     = 0;
+  nelem_triangle = 0; Global_nelem_triangle = 0;
+  nelem_quad     = 0; Global_nelem_quad     = 0;
+  nelem_tetra    = 0; Global_nelem_tetra    = 0;
+  nelem_hexa     = 0; Global_nelem_hexa     = 0;
+  nelem_prism    = 0; Global_nelem_prism    = 0;
+  nelem_pyramid  = 0; Global_nelem_pyramid  = 0;
+  
+  /*--- Allocate memory for the linear partition of the mesh. These
+   arrays are the size of the number of ranks. ---*/
+  
+  starting_node = new unsigned long[size];
+  ending_node   = new unsigned long[size];
+  npoint_procs  = new unsigned long[size];
+  nPoint_Linear = new unsigned long[size+1];
 
   /*--- Open grid file ---*/
-
   if ( rank == MASTER_NODE ) cout << "Reading D0jilk file: " << mesh_filename << std::endl;
 
+      if ((rank==MASTER_NODE))
+        cout << "TEST:: nPoint: " << nPoint << std::endl;
+  
   strcpy (cstr, mesh_filename.c_str());
+  mesh_file.open(cstr, ios::in);
   
   /*--- Check the grid ---*/
- 
+  
   if (mesh_file.fail()) {
     SU2_MPI::Error("There is no mesh file!!", CURRENT_FUNCTION);
   }
-
-  mesh_file.open(cstr, ios::in);
-  getline(mesh_file, text_line);
-  getline(mesh_file, text_line);
-  text_line.erase (0,6); 
-  totalpoints = atoi(text_line.c_str());
-
-  GlobalEddyViscosity = new su2double* [totalpoints];
-  for (iPoint = 0; iPoint < totalpoints ; iPoint++)
-    GlobalEddyViscosity[iPoint] = new su2double [nDim*nDim*nDim*nDim];
-
-  unsigned long globalindex=0;
+  
+  
+  /*--- Read grid file with format SU2 ---*/
+  
   while (getline (mesh_file, text_line)) {
-    stringstream idxss;
-    idxss << globalindex; 
-    idxstring = idxss.str();
-    digit = idxstring.length();
-    text_line.erase (0,2+digit);
-    istringstream point_line(text_line);
-    for (unsigned short iDim = 0; iDim < nDim*nDim*nDim*nDim; iDim++) {
-      point_line >> GlobalEddyViscosity[globalindex][iDim];
+    
+    /*--- Read number of points ---*/
+    
+    position = text_line.find ("NEDDY=",0);
+    if (position != string::npos) {
+      text_line.erase (0,6);
+      
+      /*--- Check for ghost points. ---*/
+      stringstream test_line(text_line);
+      iCount = 0; while (test_line >> dummyLong) iCount++;
+      
+      /*--- Now read and store the number of points and possible ghost points. ---*/
+      
+      stringstream  stream_line(text_line);
+      if (iCount == 2) {
+        
+        stream_line >> nPoint;
+        stream_line >> nPointDomain;
+        
+        /*--- Set some important point information for parallel simulations. ---*/
+        
+        Global_nPoint = nPoint;
+        Global_nPointDomain = nPointDomain;
+        if (rank == MASTER_NODE && size > SINGLE_NODE) {
+          cout << Global_nPointDomain << " points and " << Global_nPoint-Global_nPointDomain;
+          cout << " ghost points for eddy viscosity before parallel partitioning." << endl;
+        } else if (rank == MASTER_NODE) {
+          cout << Global_nPointDomain << " points and " << Global_nPoint-Global_nPointDomain;
+          cout << " ghost points." << endl;
+        }
+        
+      } else if (iCount == 1) {
+        stream_line >> nPoint;
+        
+        nPointDomain = nPoint;
+        Global_nPointDomain = nPoint;
+        Global_nPoint = nPoint;
+        if (rank == MASTER_NODE && size > SINGLE_NODE) {
+          cout << nPoint << " points for eddy viscosity before parallel partitioning." << endl;
+        } else if (rank == MASTER_NODE) {
+          cout << nPoint << " points." << endl;
+        }
+      }
+      else {
+        SU2_MPI::Error("NEDDY improperly specified", CURRENT_FUNCTION);
+      }
+      
+      if ((rank == MASTER_NODE) && (size > SINGLE_NODE))
+        cout << "Performing linear partitioning of the grid nodes for eddy viscosity." << endl;
+      
+      /*--- Compute the number of points that will be on each processor.
+       This is a linear partitioning with the addition of a simple load
+       balancing for any remainder points. ---*/
+
+      if ((rank==MASTER_NODE))
+        cout << "TEST:: nPoint: " << nPoint << std::endl;
+      
+      total_pt_accounted = 0;
+      for (i = 0; i < (unsigned long)size; i++) {
+        npoint_procs[i] = nPoint/size;
+        total_pt_accounted = total_pt_accounted + npoint_procs[i];
+      }
+      
+      /*--- Get the number of remainder points after the even division ---*/
+      
+      rem_points = nPoint-total_pt_accounted;
+      for (i = 0; i<rem_points; i++) {
+        npoint_procs[i]++;
+      }
+      
+      /*--- Store the local number of nodes and the beginning/end index.
+       nPoint is always used to store the local number of points. ---*/
+      
+      nPoint = npoint_procs[rank];
+      starting_node[0] = 0;
+      ending_node[0]   = starting_node[0] + npoint_procs[0];
+      nPoint_Linear[0] = 0;
+      for (unsigned long i = 1; i < (unsigned long)size; i++) {
+        starting_node[i] = ending_node[i-1];
+        ending_node[i]   = starting_node[i] + npoint_procs[i];
+        nPoint_Linear[i] = nPoint_Linear[i-1] + npoint_procs[i-1];
+      }
+      nPoint_Linear[size] = Global_nPoint;
+
+      /*--- Here we check if a point in the mesh file lies in the domain
+       and if so, then store it on the local processor. We only create enough
+       space in the node container for the local nodes at this point. ---*/
+     if ((rank == MASTER_NODE) && (size > SINGLE_NODE))
+       cout << "TEST1::Performing linear partitioning of the grid nodes for eddy viscosity." << endl;
+      
+      nPointNode = nPoint; 
+      //TEST::
+      // node = new CPoint*[nPoint];
+      iPoint = 0; node_count = 0;
+      while (node_count < Global_nPoint) {
+        
+        getline(mesh_file, text_line);
+
+        istringstream point_line(text_line);
+        
+        /*--- We only read information for this node if it is owned by this
+         rank based upon our initial linear partitioning. ---*/
+        
+        if ((node_count >= starting_node[rank]) && (node_count < ending_node[rank])) {
+          GlobalIndex = node_count;
+#ifndef HAVE_MPI
+          for (unsigned short iDim = 0; iDim < nDim*nDim*nDim*nDim; iDim++) {
+              point_line >> Dvector[iDim];
+          }
+#else
+          if (size > SINGLE_NODE) { 
+            for (unsigned short iDim = 0; iDim < nDim*nDim*nDim*nDim; iDim++) {
+                point_line >> Dvector[iDim];
+            }
+            GlobalIndex = node_count;
+          }
+          else {
+            for (unsigned short iDim = 0; iDim < nDim*nDim*nDim*nDim; iDim++) {
+                point_line >> Dvector[iDim];
+            }
+            GlobalIndex = node_count;
+          }
+          //cout << Dvector[3] << std::endl;
+#endif
+          for (unsigned short iDim = 0; iDim < nDim*nDim*nDim*nDim; iDim++) {
+            Dvalue = Dvector[iDim];
+            // TEST::Currently the statement underneath will give me the segfault
+            //node[iPoint]->SetD0jilk(iDim, Dvalue);
+          }
+          // TEST::
+           // TEST::Currently the statement underneath will give me the segfault
+          //node[iPoint]->SetCoord(0,0.0);
+          // TEST!
+          iPoint++;
+        }
+        node_count++;
+      }
     }
-    globalindex++;
   }
+  //for (iPoint = 0; iPoint < nPoint; iPoint++)
+   // for (iMarker = 0; iMarker < nMarker; iMarker++)
+    //  node[iPoint]->SetVertex(-1, iMarker);
+ if ((rank == MASTER_NODE) && (size > SINGLE_NODE))
+   cout << "TEST2::Performing linear partitioning of the grid nodes for eddy viscosity." << endl;
+
+  su2double *Coord_i, *D0jilk_i;
+  for (iPoint=0; iPoint<GetnPoint(); ++iPoint) {
+    //Coord_i = node[iPoint]->GetCoord();
+    //D0jilk_i = node[iPoint]->GetD0jilk();
+    //cout << "TEST:: print GetCoord(), r" << rank << " gi" <<  node[iPoint]->GetGlobalIndex() << " ip" << iPoint << " x" << Coord_i[0] << " y" << Coord_i[1] << " d" << node[iPoint]->GetD0jilk(3) << std::endl;
+    cout << "TEST:: print GetCoord(), r" << rank << " gi" <<  node[iPoint]->GetGlobalIndex() << " ip" << iPoint << " x" << Coord_i[0] << " y" << Coord_i[1] << std::endl;
+  }
+  
+ if ((rank == MASTER_NODE) && (size > SINGLE_NODE))
+   cout << "TEST3::Performing linear partitioning of the grid nodes for eddy viscosity." << endl;
+
   mesh_file.close();
 
-  for (iPoint=0; iPoint<GetnPoint(); ++iPoint) {
-    for (unsigned short iDim = 0; iDim < nDim*nDim*nDim*nDim; iDim++) {
-      Dvalue = GlobalEddyViscosity[node[iPoint]->GetGlobalIndex()][iDim];
-      node[iPoint]->SetD0jilk(iDim, Dvalue);
-    }
-  }
-
-  for (iPoint = 0; iPoint < totalpoints; iPoint++)
-    delete[] GlobalEddyViscosity[iPoint];
-  delete[] GlobalEddyViscosity;
-
-  //su2double *Coord_i, *D0jilk_i;
-  //for (iPoint=0; iPoint<GetnPoint(); ++iPoint) {
-  //  Coord_i = node[iPoint]->GetCoord();
-  //  D0jilk_i = node[iPoint]->GetD0jilk();
-  //  cout << "TEST:: print GetCoord(), r" << rank << " gi" <<  node[iPoint]->GetGlobalIndex() << " ip" << iPoint << " x" << Coord_i[0] << " y" << Coord_i[1] << " d" << node[iPoint]->GetD0jilk(3) << std::endl;
-  //}
+  delete [] Dvector;
 
 }
 

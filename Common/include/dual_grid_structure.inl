@@ -227,6 +227,12 @@ inline void CPoint::SetWall_Distance(su2double val_distance) { Wall_Distance = v
 
 inline void CPoint::SetWall_Distance_Gradient(unsigned short val_dim, su2double val_gradient) { Wall_Distance_Gradient[val_dim] = val_gradient; }
 
+inline void CPoint::SetD0jilk(unsigned short val_dim, su2double val_value) { D0jilk[val_dim] = val_value; }
+
+inline void CPoint::SetEddyViscosity_D1111(su2double val_viscosity) { EddyViscosity_D1111 = val_viscosity; EddyViscosity_D1111switch = 0; }
+
+inline void CPoint::SetEddyViscosity_D2121(su2double val_viscosity) { EddyViscosity_D2121 = val_viscosity; EddyViscosity_D2121switch = 0; }
+
 inline void CPoint::SetCurvature(su2double val_curvature) { Curvature = val_curvature; }
 
 inline void CPoint::SetSharpEdge_Distance(su2double val_distance) { SharpEdge_Distance = val_distance; }
@@ -236,6 +242,18 @@ inline su2double CPoint::GetWall_Distance(void) { return Wall_Distance; }
 inline su2double *CPoint::GetWall_Distance_Gradient(void) { return Wall_Distance_Gradient; }
 
 inline su2double CPoint::GetWall_Distance_Gradient(unsigned short val_dim) { return Wall_Distance_Gradient[val_dim]; }
+
+inline su2double CPoint::GetEddyViscosity_D1111(void) { return EddyViscosity_D1111; }
+
+inline su2double *CPoint::GetD0jilk(void) { return D0jilk; }
+
+inline su2double CPoint::GetD0jilk(unsigned short val_dim) { return D0jilk[val_dim]; }
+
+inline bool CPoint::GetEddyViscosity_D1111switch(void) { return EddyViscosity_D1111switch; }
+
+inline su2double CPoint::GetEddyViscosity_D2121(void) { return EddyViscosity_D2121; }
+
+inline bool CPoint::GetEddyViscosity_D2121switch(void) { return EddyViscosity_D2121switch; }
 
 inline su2double CPoint::GetCurvature(void) { return Curvature; }
 

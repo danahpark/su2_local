@@ -57,6 +57,7 @@ CPoint::CPoint(unsigned short val_nDim, unsigned long val_globalindex, CConfig *
   Coord_n = NULL;  Coord_n1     = NULL;  Coord_p1 = NULL;
   GridVel = NULL;  GridVel_Grad = NULL;
   Wall_Distance_Gradient = NULL;
+  D0jilk = NULL;
 
   /*--- Volume (0 -> Vol_nP1, 1-> Vol_n, 2 -> Vol_nM1 ) and coordinates of the control volume ---*/
 
@@ -134,6 +135,11 @@ CPoint::CPoint(unsigned short val_nDim, unsigned long val_globalindex, CConfig *
   Curvature = 0.0;
 
   Wall_Distance_Gradient = new su2double[nDim];
+  
+  D0jilk = new su2double[nDim*nDim*nDim*nDim];
+
+  EddyViscosity_D1111switch = 1;
+  EddyViscosity_D2121switch = 1;
 }
 
 CPoint::CPoint(su2double val_coord_0, su2double val_coord_1, unsigned long val_globalindex, CConfig *config) : CDualGrid(2) {
@@ -150,6 +156,7 @@ CPoint::CPoint(su2double val_coord_0, su2double val_coord_1, unsigned long val_g
   Coord_n = NULL;  Coord_n1     = NULL;  Coord_p1  = NULL;
   GridVel = NULL;  GridVel_Grad = NULL;
   Wall_Distance_Gradient = NULL;
+  D0jilk = NULL;
 
   /*--- Volume (0 -> Vol_nP1, 1-> Vol_n, 2 -> Vol_nM1 ) and coordinates of the control volume ---*/
 
@@ -230,7 +237,11 @@ CPoint::CPoint(su2double val_coord_0, su2double val_coord_1, unsigned long val_g
   Curvature = 0.0;
 
   Wall_Distance_Gradient = new su2double[nDim];
+  
+  D0jilk = new su2double[nDim*nDim*nDim*nDim];
 
+  EddyViscosity_D1111switch = 1;
+  EddyViscosity_D2121switch = 1;
 }
 
 CPoint::CPoint(su2double val_coord_0, su2double val_coord_1, su2double val_coord_2, unsigned long val_globalindex, CConfig *config) : CDualGrid(3) {
@@ -247,6 +258,7 @@ CPoint::CPoint(su2double val_coord_0, su2double val_coord_1, su2double val_coord
   Coord_n = NULL;  Coord_n1     = NULL;  Coord_p1 = NULL;
   GridVel = NULL;  GridVel_Grad = NULL;
   Wall_Distance_Gradient = NULL;
+  D0jilk = NULL;
 
   /*--- Volume (0 -> Vol_nP1, 1-> Vol_n, 2 -> Vol_nM1 ) and coordinates of the control volume ---*/
   if ( config->GetUnsteady_Simulation() == NO ) { 
@@ -329,6 +341,11 @@ CPoint::CPoint(su2double val_coord_0, su2double val_coord_1, su2double val_coord
   Curvature = 0.0;
 
   Wall_Distance_Gradient = new su2double[nDim];
+
+  D0jilk = new su2double[nDim*nDim*nDim*nDim];
+
+  EddyViscosity_D1111switch = 1;
+  EddyViscosity_D2121switch = 1;
 }
 
 CPoint::~CPoint() {
@@ -348,6 +365,7 @@ CPoint::~CPoint() {
     delete [] GridVel_Grad;
   }
   if (Wall_Distance_Gradient != NULL) delete[] Wall_Distance_Gradient;
+  if (D0jilk != NULL) delete[] D0jilk;
   
 }
 

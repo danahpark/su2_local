@@ -3526,6 +3526,7 @@ public:
    * \param[out] val_solution - solution in the previous BGS subiteration.
    */
   su2double Get_BGSSolution_k(unsigned short iDim);
+
 };
 
 /*!
