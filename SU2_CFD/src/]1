@@ -2791,10 +2791,6 @@ void CIncEulerSolver::Centered_Residual(CGeometry *geometry, CSolver **solver_co
     iPoint = geometry->edge[iEdge]->GetNode(0); jPoint = geometry->edge[iEdge]->GetNode(1);
     numerics->SetNormal(geometry->edge[iEdge]->GetNormal());
     numerics->SetNeighbor(geometry->node[iPoint]->GetnNeighbor(), geometry->node[jPoint]->GetnNeighbor());
-
-    /*--- Set the eddy viscosity ---*/
-    
-    if (config->GetfRANS()) numerics->SetD0jilk(geometry->node[iPoint]->GetD0jilk(),geometry->node[jPoint]->GetD0jilk());
     
     /*--- Set primitive variables w/o reconstruction ---*/
     
@@ -2863,9 +2859,6 @@ void CIncEulerSolver::Upwind_Residual(CGeometry *geometry, CSolver **solver_cont
     
     iPoint = geometry->edge[iEdge]->GetNode(0); jPoint = geometry->edge[iEdge]->GetNode(1);
     numerics->SetNormal(geometry->edge[iEdge]->GetNormal());
-
-    /*--- Set the eddy viscosity ---*/
-
     if (config->GetfRANS()) numerics->SetD0jilk(geometry->node[iPoint]->GetD0jilk(),geometry->node[jPoint]->GetD0jilk());
     
     /*--- Grid movement ---*/
@@ -5499,6 +5492,7 @@ void CIncEulerSolver::BC_Far_Field(CGeometry *geometry, CSolver **solver_contain
       geometry->vertex[val_marker][iVertex]->GetNormal(Normal);
       for (iDim = 0; iDim < nDim; iDim++) Normal[iDim] = -Normal[iDim];
       conv_numerics->SetNormal(Normal);
+      if (config->GetfRANS()) numerics->SetD0jilk(geometry->node[iPoint]->GetD0jilk(),geometry->node[jPoint]->GetD0jilk());
       
       /*--- Retrieve solution at the farfield boundary node ---*/
       
@@ -5819,10 +5813,6 @@ void CIncEulerSolver::BC_Inlet(CGeometry *geometry, CSolver **solver_container,
         visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(),
                                 geometry->node[Point_Normal]->GetCoord());
         
-        /*--- Set the eddy viscosity ---*/
-        
-        if (config->GetfRANS()) visc_numerics->SetD0jilk(geometry->node[iPoint]->GetD0jilk(),geometry->node[iPoint]->GetD0jilk());
-
         /*--- Primitive variables, and gradient ---*/
         
         visc_numerics->SetPrimitive(V_domain, V_inlet);
@@ -6033,10 +6023,6 @@ void CIncEulerSolver::BC_Outlet(CGeometry *geometry, CSolver **solver_container,
         visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(),
                                 geometry->node[Point_Normal]->GetCoord());
         
-        /*--- Set the eddy viscosity ---*/
-        
-        if (config->GetfRANS()) visc_numerics->SetD0jilk(geometry->node[iPoint]->GetD0jilk(),geometry->node[iPoint]->GetD0jilk());
-        
         /*--- Primitive variables, and gradient ---*/
         
         visc_numerics->SetPrimitive(V_domain, V_outlet);
@@ -6137,10 +6123,6 @@ void CIncEulerSolver::BC_Fluid_Interface(CGeometry *geometry, CSolver **solver_c
               Normal[iDim] = -Normal[iDim];
 
             conv_numerics->SetNormal(Normal);
-        
-            /*--- Set the eddy viscosity ---*/
-        
-            if (config->GetfRANS()) visc_numerics->SetD0jilk(geometry->node[iPoint]->GetD0jilk(),geometry->node[iPoint]->GetD0jilk());
 
             if (grid_movement)
               conv_numerics->SetGridVel(geometry->node[iPoint]->GetGridVel(), geometry->node[iPoint]->GetGridVel());
@@ -8084,10 +8066,6 @@ void CIncNSSolver::Viscous_Residual(CGeometry *geometry, CSolver **solver_contai
     numerics->SetCoord(geometry->node[iPoint]->GetCoord(),
                        geometry->node[jPoint]->GetCoord());
     numerics->SetNormal(geometry->edge[iEdge]->GetNormal());
-
-    /*--- Set the eddy viscosity ---*/
-
-    if (config->GetfRANS()) numerics->SetD0jilk(geometry->node[iPoint]->GetD0jilk(),geometry->node[jPoint]->GetD0jilk());
     
     /*--- Primitive and secondary variables ---*/
     
@@ -8158,7 +8136,6 @@ void CIncNSSolver::Friction_Forces(CGeometry *geometry, CConfig *config) {
 
   bool axisymmetric = config->GetAxisymmetric();
   bool energy       = config->GetEnergy_Equation();
-  bool QCR = config->GetQCR();
 
   /*--- Evaluate reference values for non-dimensionalization.
    For dimensional or non-dim based on initial values, use
@@ -8271,34 +8248,6 @@ void CIncNSSolver::Friction_Forces(CGeometry *geometry, CConfig *config) {
             Tau[iDim][jDim] = Viscosity*(Grad_Vel[jDim][iDim] + Grad_Vel[iDim][jDim]) - TWO3*Viscosity*div_vel*delta[iDim][jDim];
           }
         }
- 
-        /*--- If necessary evaluate the QCR contribution to Tau ---*/
-        // Modified by Danah on Apr 19 2021
-
-        // if (QCR) {
-        //   su2double den_aux, c_cr1=0.3, O_ik, O_jk;
-        //   unsigned short kDim;
- 
-        //   /*--- Denominator Antisymmetric normalized rotation tensor ---*/
- 
-        //   den_aux = 0.0; 
-        //   for (iDim = 0 ; iDim < nDim; iDim++)
-        //     for (jDim = 0 ; jDim < nDim; jDim++)
-        //       den_aux += Grad_Vel[iDim][jDim] * Grad_Vel[iDim][jDim];
-        //   den_aux = sqrt(max(den_aux,1E-10));
- 
-        //   /*--- Adding the QCR contribution ---*/
- 
-        //   for (iDim = 0 ; iDim < nDim; iDim++){
-        //     for (jDim = 0 ; jDim < nDim; jDim++){
-        //       for (kDim = 0 ; kDim < nDim; kDim++){
-        //         O_ik = (Grad_Vel[iDim][kDim] - Grad_Vel[kDim][iDim])/ den_aux;
-        //         O_jk = (Grad_Vel[jDim][kDim] - Grad_Vel[kDim][jDim])/ den_aux;
-        //         Tau[iDim][jDim] -= c_cr1 * (O_ik * Tau[jDim][kDim] + O_jk * Tau[iDim][kDim]);
-        //       }    
-        //     }    
-        //   }    
-        // }  
 
         /*--- Project Tau in each surface element ---*/
 

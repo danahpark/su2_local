@@ -173,8 +173,12 @@ CDriver::CDriver(char* confFile,
 
         geometry_container[iZone][iInst][MESH_0]->ComputeWall_Distance(config_container[iZone]);
         geometry_container[iZone][iInst][MESH_0]->ComputeWall_Distance_Gradient(config_container[iZone]);
-        geometry_container[iZone][iInst][MESH_0]->ReadD0jilk(config_container[iZone]);
       }
+
+      /*--- Computation of eddy viscosity for fixed RANS simulation ---*/
+      if (rank == MASTER_NODE)
+        cout << "Reading Eddy Viscosity." << endl;
+      geometry_container[iZone][iInst][MESH_0]->ReadD0jilk(config_container[iZone]);
 
       /*--- Computation of positive surface area in the z-plane which is used for
      the calculation of force coefficient (non-dimensionalization). ---*/

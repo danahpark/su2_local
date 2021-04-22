@@ -9699,14 +9699,6 @@ void CPhysicalGeometry::Read_SU2_Format_Parallel(CConfig *config, string val_mes
     }
   }
   
- // su2double *Coord_i, *D0jilk_i;
-  //for (iPoint=0; iPoint<GetnPoint(); ++iPoint) {
-    //Coord_i = node[iPoint]->GetCoord();
-    //D0jilk_i = node[iPoint]->GetD0jilk();
-    //cout << "TEST:: print GetCoord(), r" << rank << " gi" <<  node[iPoint]->GetGlobalIndex() << " ip" << iPoint << " x" << Coord_i[0] << " y" << Coord_i[1] << " d" << node[iPoint]->GetD0jilk(3) << std::endl;
-    //cout << "TEST:: print GetCoord(), r" << rank << " gi" <<  node[iPoint]->GetGlobalIndex() << " ip" << iPoint << " x" << Coord_i[0] << " y" << Coord_i[1] << std::endl;
-  //}
-  
   mesh_file.close();
   strcpy (cstr, val_mesh_filename.c_str());
   

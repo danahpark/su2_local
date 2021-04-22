@@ -16309,7 +16309,9 @@ void CNSSolver::Friction_Forces(CGeometry *geometry, CConfig *config) {
           }
         }
         
-	/* Uncommented by Danah on July 19 */
+	/* Commented by Danah on July 19 2020*/
+	/* Uncommented by Danah on Apr 16 2021*/
+	/* Commented by Danah on Apr 19 2020*/
         /*--- If necessary evaluate the QCR contribution to Tau ---*/
         if (1) {}
 	else { 
@@ -16335,7 +16337,7 @@ void CNSSolver::Friction_Forces(CGeometry *geometry, CConfig *config) {
                         Tau[iDim][jDim] -= c_cr1 * (O_ik * Tau[jDim][kDim] + O_jk * Tau[iDim][kDim]);
                     }
                 }
-            }
+           }
         
         }
        } 

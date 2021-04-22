@@ -4859,6 +4859,8 @@ void CAvgGrad_Base::SetStressTensor(const su2double *val_primvar,
                            const su2double val_laminar_viscosity,
                            const su2double val_eddy_viscosity) {
 
+  //cout << "TEST:: Calling from SetStressTensor" << std::endl;
+
   unsigned short iDim, jDim;
   const su2double Density = val_primvar[nDim+2];
   const su2double total_viscosity = val_laminar_viscosity + val_eddy_viscosity;
@@ -4885,9 +4887,36 @@ void CAvgGrad_Base::SetStressTensor(const su2double *val_primvar,
   }
 }
 
+/*--- Original Code */
+// void CAvgGrad_Base::AddQCR(const su2double* const *val_gradprimvar) {
+// 
+//   su2double den_aux, c_cr1= 0.3, O_ik, O_jk;
+//   unsigned short iDim, jDim, kDim;
+// 
+//   /*--- Denominator Antisymmetric normalized rotation tensor ---*/
+// 
+//   den_aux = 0.0; 
+//   for (iDim = 0 ; iDim < nDim; iDim++)
+//     for (jDim = 0 ; jDim < nDim; jDim++)
+//       den_aux += val_gradprimvar[iDim+1][jDim] * val_gradprimvar[iDim+1][jDim];
+//   den_aux = sqrt(max(den_aux,1E-10));
+// 
+//   /*--- Adding the QCR contribution ---*/
+// 
+//   for (iDim = 0 ; iDim < nDim; iDim++){
+//     for (jDim = 0 ; jDim < nDim; jDim++){
+//       for (kDim = 0 ; kDim < nDim; kDim++){
+//         O_ik = (val_gradprimvar[iDim+1][kDim] - val_gradprimvar[kDim+1][iDim])/ den_aux;
+//         O_jk = (val_gradprimvar[jDim+1][kDim] - val_gradprimvar[kDim+1][jDim])/ den_aux;
+//         tau[iDim][jDim] -= c_cr1 * ((O_ik * tau[jDim][kDim]) + (O_jk * tau[iDim][kDim]));
+//       }    
+//     }    
+//   }
+// }
+
 void CAvgGrad_Base::AddQCR(const su2double* const *val_gradprimvar) {
 
-  su2double den_aux, c_cr1= 0.3, O_ik, O_jk;
+  su2double den_aux, c_cr1= 0.3, O_ik, O_jk, tau_qcr[nDim][nDim];
   unsigned short iDim, jDim, kDim;
 
   /*--- Denominator Antisymmetric normalized rotation tensor ---*/
@@ -4902,12 +4931,59 @@ void CAvgGrad_Base::AddQCR(const su2double* const *val_gradprimvar) {
 
   for (iDim = 0 ; iDim < nDim; iDim++){
     for (jDim = 0 ; jDim < nDim; jDim++){
+      tau_qcr[iDim][jDim] = 0.0;
       for (kDim = 0 ; kDim < nDim; kDim++){
         O_ik = (val_gradprimvar[iDim+1][kDim] - val_gradprimvar[kDim+1][iDim])/ den_aux;
         O_jk = (val_gradprimvar[jDim+1][kDim] - val_gradprimvar[kDim+1][jDim])/ den_aux;
-        tau[iDim][jDim] -= c_cr1 * ((O_ik * tau[jDim][kDim]) + (O_jk * tau[iDim][kDim]));
+        tau_qcr[iDim][jDim] -= c_cr1 * ((O_ik * tau[jDim][kDim]) + (O_jk * tau[iDim][kDim]));
       }
     }
+  }
+
+  for (iDim = 0 ; iDim < nDim; iDim++){
+    for (jDim = 0 ; jDim < nDim; jDim++){
+      tau[iDim][jDim] += tau_qcr[iDim][jDim];
+    }
+  }
+}
+
+void CAvgGrad_Base::AddQCR2013v(const su2double val_eddy_viscosity, const su2double* const *val_gradprimvar) {
+
+  // QCR 2013v version
+  su2double den_aux, den_aux2, W_ij, c_cr1= 0.3, c_cr2= 2.5, O_ik, O_jk, tau_qcr[nDim][nDim];
+  unsigned short iDim, jDim, kDim;
+
+  /*--- Denominator Antisymmetric normalized rotation tensor ---*/
+
+  den_aux = 0.0;
+  den_aux2 = 0.0;
+  for (iDim = 0 ; iDim < nDim; iDim++)
+    for (jDim = 0 ; jDim < nDim; jDim++){
+      den_aux += val_gradprimvar[iDim+1][jDim] * val_gradprimvar[iDim+1][jDim];
+      W_ij = 0.5 * (val_gradprimvar[iDim+1][jDim] - val_gradprimvar[jDim+1][iDim]);
+      den_aux2 += 2.0 * W_ij * W_ij;
+    }
+  den_aux = sqrt(max(den_aux,1E-10));
+  den_aux2 = sqrt(max(den_aux2,1E-10));
+
+  /*--- Adding the QCR contribution ---*/
+
+  for (iDim = 0 ; iDim < nDim; iDim++){
+    for (jDim = 0 ; jDim < nDim; jDim++){
+      tau_qcr[iDim][jDim] = 0.0;
+      for (kDim = 0 ; kDim < nDim; kDim++){
+        O_ik = (val_gradprimvar[iDim+1][kDim] - val_gradprimvar[kDim+1][iDim])/ den_aux;
+        O_jk = (val_gradprimvar[jDim+1][kDim] - val_gradprimvar[kDim+1][jDim])/ den_aux;
+        tau_qcr[iDim][jDim] -= c_cr1 * ((O_ik * tau[jDim][kDim]) + (O_jk * tau[iDim][kDim]));
+      }
+    }
+  }
+
+  for (iDim = 0 ; iDim < nDim; iDim++){
+    for (jDim = 0 ; jDim < nDim; jDim++){
+      tau[iDim][jDim] += tau_qcr[iDim][jDim];
+    }
+    tau[iDim][iDim] -= c_cr2 * val_eddy_viscosity * den_aux2;
   }
 }
 
@@ -5183,7 +5259,6 @@ void CAvgGrad_Base::SetStressTensorfRANS(const su2double *val_primvar, const su2
   su2double Tau[nDim][nDim];
   su2double Djilk[nDim][nDim][nDim][nDim];
   
-  //cout << "TEST:: Calling from SetStressTensorfRANS" << std::endl;
 
   /*--- Set tensorial eddy viscosity ---*/
   for (iDim = 0; iDim < nDim; iDim++) {
@@ -5205,6 +5280,7 @@ void CAvgGrad_Base::SetStressTensorfRANS(const su2double *val_primvar, const su2
   Djilk[1][1][1][1] = 2.*val_eddy_viscosity;
   */
 
+  //cout << "TEST:: val_eddy_viscosity =" << val_eddy_viscosity << std::endl;
   
   idx = 0;
   for (iDim = 0; iDim < nDim; iDim++) {
@@ -5239,6 +5315,7 @@ void CAvgGrad_Base::SetStressTensorfRANS(const su2double *val_primvar, const su2
 
    for (iDim = 0 ; iDim < nDim; iDim++)
      for (jDim = 0 ; jDim < nDim; jDim++)
+       //tau[iDim][jDim] = 0.0;
        tau[iDim][jDim] = val_laminar_viscosity*( val_gradprimvar[jDim+1][iDim] + val_gradprimvar[iDim+1][jDim] );
        //tau[iDim][jDim] = val_laminar_viscosity*( val_gradprimvar[jDim+1][iDim] );
        //                - TWO3*total_viscosity*div_vel*delta[iDim][jDim];
@@ -6000,9 +6077,15 @@ void CAvgGrad_Flow::ComputeResidual(su2double *val_residual, su2double **val_Jac
     }
   }
   else{
-    SetStressTensor(Mean_PrimVar, Mean_GradPrimVar, Mean_turb_ke, Mean_Laminar_Viscosity, Mean_Eddy_Viscosity);
-    if (config->GetQCR()) AddQCR(Mean_GradPrimVar);
+    if (config->GetfRANS()){
+      SetStressTensorfRANS(Mean_PrimVar, Mean_GradPrimVar, Mean_turb_ke, Mean_Laminar_Viscosity, Mean_Eddy_Viscosity, (dist_i+dist_j)*0.5, Mean_GradWallDist, Mean_D0jilk);
+    }
+    else{
+      SetStressTensor(Mean_PrimVar, Mean_GradPrimVar, Mean_turb_ke, Mean_Laminar_Viscosity, Mean_Eddy_Viscosity);
+      if (config->GetQCR()) AddQCR(Mean_GradPrimVar);
+    }
   }
+
   if (Mean_TauWall > 0) AddTauWall(Normal, Mean_TauWall);
 
   SetHeatFluxVector(Mean_GradPrimVar, Mean_Laminar_Viscosity,
@@ -6275,8 +6358,13 @@ void CGeneralAvgGrad_Flow::ComputeResidual(su2double *val_residual, su2double **
     }
   }
   else{
-    SetStressTensor(Mean_PrimVar, Mean_GradPrimVar, Mean_turb_ke, Mean_Laminar_Viscosity, Mean_Eddy_Viscosity);
-    //if (config->GetQCR()) AddQCR(Mean_GradPrimVar);
+    if (config->GetfRANS()){
+      SetStressTensorfRANS(Mean_PrimVar, Mean_GradPrimVar, Mean_turb_ke, Mean_Laminar_Viscosity, Mean_Eddy_Viscosity, (dist_i+dist_j)*0.5, Mean_GradWallDist, Mean_D0jilk);
+    }
+    else{
+      SetStressTensor(Mean_PrimVar, Mean_GradPrimVar, Mean_turb_ke, Mean_Laminar_Viscosity, Mean_Eddy_Viscosity);
+      if (config->GetQCR()) AddQCR(Mean_GradPrimVar);
+    }
   }
 
   SetHeatFluxVector(Mean_GradPrimVar, Mean_Laminar_Viscosity,

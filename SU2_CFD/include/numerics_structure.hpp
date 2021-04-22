@@ -3138,6 +3138,21 @@ class CAvgGrad_Base : public CNumerics {
   void AddQCR(const su2double* const *val_gradprimvar);
 
   /*!
+   * \brief Add a correction using a Quadratic Constitutive Relation
+   *
+   * This function requires that the stress tensor already be
+   * computed using \ref GetStressTensor
+   *
+   * See: Spalart, P. R., "Strategies for Turbulence Modelling and
+   * Simulation," International Journal of Heat and Fluid Flow, Vol. 21,
+   * 2000, pp. 252-263
+   *
+   * \param[in] val_eddy_viscosity - Value of the eddy viscosity.
+   * \param[in] val_gradprimvar
+   */
+  void AddQCR2013v(const su2double val_eddy_viscosity, const su2double* const *val_gradprimvar);
+
+  /*!
    * \brief Set stress tensor using a correction inspired by Macroscopic Forcing Method 
    *
    * This function requires that the stress tensor already be

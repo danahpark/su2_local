@@ -631,6 +631,15 @@ void CAvgGradInc_Flow::ComputeResidual(su2double *val_residual, su2double **val_
     CorrectGradient(Mean_GradPrimVar, PrimVar_i, PrimVar_j, Edge_Vector,
                     dist_ij_2, nVar);
   }
+
+   /*--- Mean eddy viscosity ---*/
+ 
+  if (config->GetfRANS()){
+    for (iDim = 0; iDim < nDim*nDim*nDim*nDim; iDim++) {
+      Mean_D0jilk[iDim] = 0.5*(D0jilk_i[iDim] + D0jilk_j[iDim]);
+    }
+  }
+
   
   /*--- Get projected flux tensor ---*/
   if (config->GetMFM()){
@@ -642,9 +651,16 @@ void CAvgGradInc_Flow::ComputeResidual(su2double *val_residual, su2double **val_
     }
   }
   else{
-    SetStressTensor(Mean_PrimVar, Mean_GradPrimVar, Mean_turb_ke, Mean_Laminar_Viscosity, Mean_Eddy_Viscosity);
-    //if (config->GetQCR()) AddQCR(Mean_GradPrimVar);
+    if (config->GetfRANS()){
+      SetStressTensorfRANS(Mean_PrimVar, Mean_GradPrimVar, Mean_turb_ke, Mean_Laminar_Viscosity, Mean_Eddy_Viscosity, (dist_i+dist_j)*0.5, Mean_GradWallDist, Mean_D0jilk);
+    }
+    else{
+      SetStressTensor(Mean_PrimVar, Mean_GradPrimVar, Mean_turb_ke, Mean_Laminar_Viscosity, Mean_Eddy_Viscosity);
+      //if (config->GetQCR()) AddQCR2013v(Mean_Eddy_Viscosity, Mean_GradPrimVar);
+      if (config->GetQCR()) AddQCR(Mean_GradPrimVar);
+    }
   }
+
   //SetStressTensor(Mean_PrimVar, Mean_GradPrimVar, Mean_turb_ke,
   //       Mean_Laminar_Viscosity, Mean_Eddy_Viscosity);
   GetViscousIncProjFlux(Mean_GradPrimVar, Normal, Mean_Thermal_Conductivity);
@@ -669,8 +685,25 @@ void CAvgGradInc_Flow::ComputeResidual(su2double *val_residual, su2double **val_
     } else {
 
       const su2double dist_ij = sqrt(dist_ij_2);
-      SetIncTauJacobian(Mean_Laminar_Viscosity, Mean_Eddy_Viscosity,
+      if (config->GetfRANS()){
+        // For now only consider computing jacobian for fixed-SA case but later change this to 
+        // full 16 directions
+
+        //SetIncTauJacobian(Mean_Laminar_Viscosity, max(fabs(Mean_D0jilk[2]),fabs(Mean_D0jilk[0])),
+        //                dist_ij, UnitNormal);
+        SetIncTauJacobian(Mean_Laminar_Viscosity, max(fabs(Mean_D0jilk[2]),max(max(fabs(Mean_D0jilk[0]*0.5), fabs(Mean_D0jilk[15]*0.5)),
+                         max(fabs(Mean_D0jilk[5]), fabs(Mean_D0jilk[10])))),
+                         dist_ij, UnitNormal);
+        //SetIncTauJacobian(Mean_Laminar_Viscosity, max(max(fabs(Mean_D0jilk[0]), fabs(Mean_D0jilk[15])),
+        //                max(fabs(Mean_D0jilk[5]), fabs(Mean_D0jilk[10]))),
+        //                dist_ij, UnitNormal);
+        //SetIncTauJacobian(Mean_Laminar_Viscosity, abs(Mean_D0jilk[0])*0.5,
+        //                dist_ij, UnitNormal);
+      }
+      else {
+        SetIncTauJacobian(Mean_Laminar_Viscosity, Mean_Eddy_Viscosity,
                         dist_ij, UnitNormal);
+      }
       GetViscousIncProjJacs(Area, val_Jacobian_i, val_Jacobian_j);
 
       /*--- Include the temperature equation Jacobian. ---*/
